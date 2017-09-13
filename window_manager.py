@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import math
 import time
-import json
 
 import win32con
 import win32gui
@@ -24,16 +23,16 @@ class WindowManager():
         self.screen_width = dt_r-dt_l
         self.screen_height = dt_b-dt_t
 
-        self.windows = set()
-        self.window_stack = []
-        self.cur_stack_idx = 0
-        self.max_main = max_main
         self.num_stacks = num_stacks
+        self.window_stack = []
         for i in range(self.num_stacks):
             self.window_stack.append(list())
+        self.cur_stack_idx = 0
+
+        self.max_main = max_main
 
         self.cur_idx = 0
-        self.cur_win = 0
+        self.cur_win = None
 
         self.y_offset = y_offset
         self.ignore_list = ["Windows.UI.Core.CoreWindow",
@@ -73,34 +72,42 @@ class WindowManager():
                     window['name'] = p.Name
             except:
                 window['name'] = ""
-            window_string = json.dumps(window, sort_keys=True,
-                                            ensure_ascii=False)
-            windows.add(window_string)
+            windows.append(window)
 
-        windows = set()
+        windows = []
         win32gui.EnumWindows(callback, windows)
         return windows
 
-    def _get_element(self, window_string, dict_key):
-        window = json.loads(window_string)
-        return window[dict_key]
-
     def manage_window_stack(self):
-        old_windows = self.windows
-        self.windows = self._getWindows()
+        old_stack = self.window_stack[self.cur_stack_idx]
+        new_stack = self._getWindows()
 
-        if old_windows >= self.windows:
-            # some window(s) closed
-            diffs = old_windows - self.windows
-            for diff in diffs:
-                for i in range(self.num_stacks):
-                    if diff in self.window_stack[i]:
-                        self.window_stack[i].remove(diff)
-        else:
-            # some window(s) opened
-            diffs = self.windows - old_windows
-            for diff in diffs:
-                self.window_stack[self.cur_stack_idx].insert(0, diff)
+        rm_list_old = []
+        rm_list_new = []
+        for old in old_stack:
+            still_here = False
+            for new in new_stack:
+                if old == new:
+                    # if same window is still existing
+                    rm_list_new.append(new)
+                    still_here = True
+                    continue
+                elif old['hwnd'] == new['hwnd']:
+                    # if windows with different title but same hwnd
+                    # meaning they are the the same window
+                    rm_list_new.append(new)
+            if not still_here:
+                # if the window is closed
+                rm_list_old.append(old)
+
+        # rm the closed windows
+        for rm_item in rm_list_old:
+            old_stack.remove(rm_item)
+        # rm the duplicate windows
+        for rm_item in rm_list_new:
+            new_stack.remove(rm_item)
+        # prepend new windows
+        self.window_stack[self.cur_stack_idx] = new_stack + old_stack
 
     def move_n_resize(self):
         self.manage_window_stack()
@@ -116,14 +123,14 @@ class WindowManager():
             for i in range(num_win):
                 try:
                     win32gui.SetWindowPos(
-                            self._get_element(cur_stack[i], 'hwnd'),
+                            cur_stack[i]['hwnd'],
                             win32con.HWND_TOPMOST,
                             0, self.y_offset + win_h*i, win_w, win_h,
                             win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                             )
                 except Exception:
-                    print("error: SetWindowPos" + cur_stack[i])
-
+                    print("error: SetWindowPos" + str(cur_stack[i]))
+                    # # exit(0)
 
         else:
             win_w = math.floor(self.screen_width/2)
@@ -135,45 +142,43 @@ class WindowManager():
             for i in range(self.max_main):
                 try:
                     win32gui.SetWindowPos(
-                            self._get_element(cur_stack[i], 'hwnd'),
+                            cur_stack[i]['hwnd'],
                             win32con.HWND_TOPMOST,
                             0, self.y_offset + main_win_h*i, win_w, main_win_h,
                             win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                             )
                 except Exception:
-                    print("error: SetWindowPos" + cur_stack[i])
+                    print("error: SetWindowPos" + str(cur_stack[i]))
+                    # exit(0)
 
             for i in range(num_win-self.max_main):
                 try:
                     win32gui.SetWindowPos(
-                            self._get_element(cur_stack[i+self.max_main],
-                                                'hwnd'),
+                            cur_stack[i+self.max_main]['hwnd'],
                             win32con.HWND_TOPMOST,
                             win_w, self.y_offset+sub_win_h*i, win_w, sub_win_h,
                             win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                             )
                 except Exception:
-                    print("error: SetWindowPos" + cur_stack[i])
+                    print("error: SetWindowPos" + str(cur_stack[i]))
+                    # exit(0)
 
     def close_active_window(self):
         hwnd = win32gui.GetForegroundWindow()
-        self.close_window(hwnd)
-
-    def close_window(self, hwnd):
         win32gui.PostMessage(hwnd, win32con.WM_CLOSE,0,0)
         time.sleep(0.5)
         self.move_n_resize()
 
-    def focus_next(self):
+    def focus_next(self, num=1):
         cur_stack = self.window_stack[self.cur_stack_idx]
-        self.cur_idx = (self.cur_idx + 1) % len(cur_stack)
+        self.cur_idx = (self.cur_idx + num) % len(cur_stack)
         self.cur_win = cur_stack[self.cur_idx]
         try:
-            win32gui.SetForegroundWindow(self._get_element(self.cur_win,
-                                                            'hwnd'))
+            win32gui.SetForegroundWindow(self.cur_win['hwnd'])
             print("debug: focus_next: " + str(self.cur_idx))
         except Exception:
-            print ("error: SetForegroundWindow" + self.cur_win)
+            print ("error: SetForegroundWindow" + str(self.cur_win))
+            # exit(0)
 
     def switch_to_nth_stack(self, stack_idx):
         self.cur_stack_idx = stack_idx
@@ -186,7 +191,7 @@ class WindowManager():
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
         for window in cur_stack:
-            if hwnd == self._get_element(window, 'hwnd'):
+            if hwnd == window['hwnd']:
                 print("found hwnd")
                 target_window = cur_stack.index(window)
 
@@ -198,7 +203,7 @@ class WindowManager():
             print("debug: send_to_nth_stack: " + str(stack_idx))
             self.move_n_resize()
 
-    def change_main_stack(self, num):
+    def change_main_stack(self, num=1):
         self.max_main += num
         if self.max_main <= 0:
             self.max_main = 1
