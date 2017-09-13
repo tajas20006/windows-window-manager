@@ -2,6 +2,7 @@
 # -*- coding: utf-8 -*-
 import math
 import time
+import json
 
 import win32con
 import win32gui
@@ -11,7 +12,7 @@ from win32api import GetAsyncKeyState
 import wmi
 
 class WindowManager():
-    def __init__(self, title="WindowManager", max_main=1, y_offset=40):
+    def __init__(self, title="WindowManager", max_main=1, y_offset=40, ignore_list=[]):
         # logger.debug('new manager is created')
         print('debug: new manager is created')
 
@@ -29,6 +30,8 @@ class WindowManager():
         self.cur_win = 0
 
         self.y_offset = y_offset
+        self.ignore_list = ["Windows.UI.Core.CoreWindow",
+                                "ApplicationFrameWindow"] + ignore_list
 
     def _isRealWindow(self, hwnd):
         '''Return True iff given window is a real Windows application window.'''
@@ -49,28 +52,31 @@ class WindowManager():
             if not self._isRealWindow(hwnd):
                 return
             class_name = win32gui.GetClassName(hwnd)
-            if (class_name == "Windows.UI.Core.CoreWindow")\
-                or (class_name == "ApplicationFrameWindow"):
-                return
-            window_title = win32gui.GetWindowText(hwnd)
+            for ignore_item in self.ignore_list:
+                if class_name == ignore_item:
+                    return
+            window = {}
+            window['hwnd'] = hwnd
+            window['class_name'] = class_name
+            window['title'] = win32gui.GetWindowText(hwnd)
 
             try:
                 _, pid = win32process.GetWindowThreadProcessId(hwnd)
                 for p in self.c.query('SELECT Name FROM Win32_Process WHERE\
                                         ProcessId = %s' % str(pid)):
-                    process_name = p.Name
+                    window['name'] = p.Name
             except:
-                process_name = None
-            # print({
-            #         "hwnd": hwnd,
-            #         "class_name": class_name,
-            #         "process_name": process_name,
-            #         "window_title": window_title
-            #     })
-            windows.add(hwnd)
+                window['name'] = ""
+            window_string = json.dumps(window, sort_keys=True, ensure_ascii=False)
+            windows.add(window_string)
+
         windows = set()
         win32gui.EnumWindows(callback, windows)
         return windows
+
+    def _get_element(self, window_string, dict_key):
+        window = json.loads(window_string)
+        return window[dict_key]
 
     def manage_window_stack(self):
         old_windows = self.windows
@@ -98,12 +104,17 @@ class WindowManager():
             win_w = self.screen_width
 
             for i in range(num_win):
-                win32gui.SetWindowPos(
-                        self.window_stack[i],
-                        win32con.HWND_TOPMOST,
-                        0, self.y_offset + win_h*i, win_w, win_h,
-                        win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
-                        )
+                try:
+                    win32gui.SetWindowPos(
+                            self._get_element(self.window_stack[i], 'hwnd'),
+                            win32con.HWND_TOPMOST,
+                            0, self.y_offset + win_h*i, win_w, win_h,
+                            win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
+                            )
+                except Exception:
+                    print("error: SetWindowPos" + self.window_stack[i])
+
+
         else:
             win_w = math.floor(self.screen_width/2)
             main_win_h = math.floor((self.screen_height-self.y_offset)/
@@ -112,19 +123,28 @@ class WindowManager():
                                                     (num_win-self.max_main))
 
             for i in range(self.max_main):
-                win32gui.SetWindowPos(
-                        self.window_stack[i],
-                        win32con.HWND_TOPMOST,
-                        0, self.y_offset + main_win_h*i, win_w, main_win_h,
-                        win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
-                        )
+                try:
+                    win32gui.SetWindowPos(
+                            self._get_element(self.window_stack[i], 'hwnd'),
+                            win32con.HWND_TOPMOST,
+                            0, self.y_offset + main_win_h*i, win_w, main_win_h,
+                            win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
+                            )
+                except Exception:
+                    print("error: SetWindowPos" + self.window_stack[i])
+
             for i in range(num_win-self.max_main):
-                win32gui.SetWindowPos(
-                        self.window_stack[i+self.max_main],
-                        win32con.HWND_TOPMOST,
-                        win_w, self.y_offset+sub_win_h*i, win_w, sub_win_h,
-                        win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
-                        )
+                try:
+                    win32gui.SetWindowPos(
+                            self._get_element(self.window_stack[i+self.max_main],
+                                                'hwnd'),
+                            win32con.HWND_TOPMOST,
+                            win_w, self.y_offset+sub_win_h*i, win_w, sub_win_h,
+                            win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
+                            )
+                except Exception:
+                    print("error: SetWindowPos" + self.window_stack[i])
+
 
     def close_active_window(self):
         hwnd = win32gui.GetForegroundWindow()
@@ -138,8 +158,11 @@ class WindowManager():
     def focus_next(self):
         self.cur_idx = (self.cur_idx + 1) % len(self.window_stack)
         self.cur_win = self.window_stack[self.cur_idx]
-        win32gui.SetForegroundWindow(self.cur_win)
-
+        try:
+            win32gui.SetForegroundWindow(self._get_element(self.cur_win, 'hwnd'))
+        except Exception:
+            print (Exception)
+            print (self.cur_win)
 
 def isKeyDown(key):
     state = GetAsyncKeyState(key)
