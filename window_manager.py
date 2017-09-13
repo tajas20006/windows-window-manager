@@ -89,7 +89,7 @@ class WindowManager():
         old_windows = self.windows
         self.windows = self._getWindows()
 
-        if len(old_windows) > len(self.windows):
+        if old_windows >= self.windows:
             # some window(s) closed
             diffs = old_windows - self.windows
             for diff in diffs:
