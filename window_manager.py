@@ -238,8 +238,8 @@ class WindowManager():
 
         if target_window != -1:
             self.window_stack[stack_idx].append(cur_stack[target_window])
-            cur_stack.pop(target_window)
             self.hide_window(cur_stack[target_window]['hwnd'])
+            cur_stack.pop(target_window)
             print("debug: send_to_nth_stack: " + str(stack_idx))
             self.move_n_resize()
 
