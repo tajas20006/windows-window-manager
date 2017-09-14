@@ -243,11 +243,23 @@ class WindowManager():
             print("debug: send_to_nth_stack: " + str(stack_idx))
             self.move_n_resize()
 
-    def change_main_stack(self, num=1):
+    def move_active_to_main_stack(self):
+        hwnd = win32gui.GetForegroundWindow()
+        target_window = -1
+        for i, window in enumerate(self.window_stack[self.cur_stack_idx]):
+            if hwnd == window['hwnd']:
+                print(i)
+                target_window = i
+        if target_window != -1:
+            window = self.window_stack[self.cur_stack_idx].pop(target_window)
+            self.window_stack[self.cur_stack_idx][:0] = [window]
+            self.move_n_resize()
+
+    def change_max_main(self, num=1):
         self.max_main += num
         if self.max_main <= 0:
             self.max_main = 1
-        print("debug: change_main_stack: " + str(num))
+        print("debug: change_max_main: " + str(num))
         self.move_n_resize()
 
     def recover_windows(self):
@@ -298,9 +310,11 @@ if __name__ == '__main__':
             elif isKeyDown(ord('X')):
                 manager.switch_to_nth_stack(0)
             elif isKeyDown(0xBC):       # comma
-                manager.change_main_stack(+1)
+                manager.change_max_main(+1)
             elif isKeyDown(0xBE):       # period
-                manager.change_main_stack(-1)
+                manager.change_max_main(-1)
+            elif isKeyDown(win32con.VK_RETURN):
+                manager.move_active_to_main_stack()
             else:
                 continue
         time.sleep(0.2)
