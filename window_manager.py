@@ -286,7 +286,7 @@ def isKeyDown(key, isAsync=True):
 
 if __name__ == '__main__':
     print('INFO: Start window manager')
-    manager = WindowManager(max_main=1, ignore_list=['TaskManagerWindow'])
+    manager = WindowManager(ignore_list=['TaskManagerWindow'])
 
     while True:
         manager.move_n_resize()
