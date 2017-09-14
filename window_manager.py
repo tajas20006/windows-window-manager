@@ -3,25 +3,32 @@
 import math
 import time
 
+import win32api
 import win32con
 import win32gui
 import win32process
-from win32api import GetAsyncKeyState
 
 import wmi
 
 class WindowManager():
     def __init__(self, title="WindowManager", max_main=1, num_stacks=2,
-                    y_offset=40, ignore_list=[]):
+                    ignore_list=[]):
         # logger.debug('new manager is created')
         print('debug: new manager is created')
 
         self.c = wmi.WMI()
 
-        dt_l,dt_t,dt_r,dt_b =\
-                        win32gui.GetWindowRect(win32gui.GetDesktopWindow())
-        self.screen_width = dt_r-dt_l
-        self.screen_height = dt_b-dt_t
+        monitors = win32api.EnumDisplayMonitors(None, None)
+        (h_first_mon, _, (_,_,_,_)) = monitors[0]
+        first_mon = win32api.GetMonitorInfo(h_first_mon)
+        m_left, m_top, m_right, m_bottom = first_mon['Monitor']
+        w_left, w_top, w_right, w_bottom = first_mon['Work']
+
+        self.monitor_width = m_right - m_left
+        self.monitor_height = m_bottom - m_top
+        self.work_width = w_right - w_left
+        self.work_height = w_bottom - w_top
+        self.taskbar_height = self.monitor_height - self.work_height
 
         self.num_stacks = num_stacks
         self.window_stack = []
@@ -34,7 +41,6 @@ class WindowManager():
         self.cur_idx = 0
         self.cur_win = None
 
-        self.y_offset = y_offset
         self.ignore_list = ["Windows.UI.Core.CoreWindow",
                                 "ApplicationFrameWindow"] + ignore_list
 
@@ -65,18 +71,21 @@ class WindowManager():
             window['class_name'] = class_name
             window['title'] = win32gui.GetWindowText(hwnd)
 
-            try:
-                _, pid = win32process.GetWindowThreadProcessId(hwnd)
-                for p in self.c.query('SELECT Name FROM Win32_Process WHERE\
-                                        ProcessId = %s' % str(pid)):
-                    window['name'] = p.Name
-            except:
-                window['name'] = ""
+            _, pid = win32process.GetWindowThreadProcessId(hwnd)
+            window['pid'] = pid
             windows.append(window)
 
         windows = []
         win32gui.EnumWindows(callback, windows)
         return windows
+
+    def get_process_name(self,pid):
+        try:
+            for p in self.c.query('SELECT Name FROM Win32_Process WHERE\
+                                    ProcessId = %s' % str(pid)):
+                return p.Name
+        except:
+            return ""
 
     def manage_window_stack(self):
         old_stack = self.window_stack[self.cur_stack_idx]
@@ -87,15 +96,11 @@ class WindowManager():
         for old in old_stack:
             still_here = False
             for new in new_stack:
-                if old == new:
+                if old['hwnd'] == new['hwnd']:
                     # if same window is still existing
                     rm_list_new.append(new)
                     still_here = True
                     continue
-                elif old['hwnd'] == new['hwnd']:
-                    # if windows with different title but same hwnd
-                    # meaning they are the the same window
-                    rm_list_new.append(new)
             if not still_here:
                 # if the window is closed
                 rm_list_old.append(old)
@@ -106,26 +111,28 @@ class WindowManager():
         # rm the duplicate windows
         for rm_item in rm_list_new:
             new_stack.remove(rm_item)
+        print("new: " + str(new_stack))
+        print("old: " + str(old_stack))
         # prepend new windows
         self.window_stack[self.cur_stack_idx] = new_stack + old_stack
 
     def move_n_resize(self):
         self.manage_window_stack()
         cur_stack = self.window_stack[self.cur_stack_idx]
-        print(cur_stack)
+        # print(cur_stack)
         num_win = len(cur_stack)
         if num_win is 0:
             return
         elif num_win <= self.max_main:
-            win_h = math.floor((self.screen_height-self.y_offset)/num_win)
-            win_w = self.screen_width
+            win_h = math.floor((self.work_height)/num_win)
+            win_w = self.work_width
 
             for i in range(num_win):
                 try:
                     win32gui.SetWindowPos(
                             cur_stack[i]['hwnd'],
                             win32con.HWND_TOPMOST,
-                            0, self.y_offset + win_h*i, win_w, win_h,
+                            0, win_h*i + self.taskbar_height, win_w, win_h,
                             win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                             )
                 except Exception:
@@ -133,18 +140,17 @@ class WindowManager():
                     # # exit(0)
 
         else:
-            win_w = math.floor(self.screen_width/2)
-            main_win_h = math.floor((self.screen_height-self.y_offset)/
-                                                            (self.max_main))
-            sub_win_h = math.floor((self.screen_height-self.y_offset)/
-                                                    (num_win-self.max_main))
+            win_w = math.floor(self.work_width/2)
+            main_win_h = math.floor((self.work_height) / (self.max_main))
+            sub_win_h = math.floor((self.work_height) / (num_win-self.max_main))
 
             for i in range(self.max_main):
                 try:
                     win32gui.SetWindowPos(
                             cur_stack[i]['hwnd'],
                             win32con.HWND_TOPMOST,
-                            0, self.y_offset + main_win_h*i, win_w, main_win_h,
+                            0, main_win_h*i + self.taskbar_height,
+                            win_w, main_win_h,
                             win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                             )
                 except Exception:
@@ -156,7 +162,8 @@ class WindowManager():
                     win32gui.SetWindowPos(
                             cur_stack[i+self.max_main]['hwnd'],
                             win32con.HWND_TOPMOST,
-                            win_w, self.y_offset+sub_win_h*i, win_w, sub_win_h,
+                            win_w, sub_win_h*i + self.taskbar_height,
+                            win_w, sub_win_h,
                             win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                             )
                 except Exception:
