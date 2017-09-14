@@ -180,26 +180,59 @@ class WindowManager():
             print ("error: SetForegroundWindow" + str(self.cur_win))
             # exit(0)
 
+    def hide_window(self, hwnd):
+        try:
+            left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+            win32gui.SetWindowPos(hwnd,
+                    win32con.HWND_TOPMOST,
+                    left, top, right, bottom,
+                    win32con.SWP_HIDEWINDOW | win32con.SWP_NOZORDER |
+                    win32con.SWP_NOMOVE
+                    )
+        except Exception:
+            print("error: SetWindowPos" + str(hwnd))
+
+    def show_window(self, hwnd):
+        try:
+            left,top,right,bottom = win32gui.GetWindowRect(hwnd)
+            win32gui.SetWindowPos(hwnd,
+                    win32con.HWND_TOPMOST,
+                    left, top, right, bottom,
+                    win32con.SWP_SHOWWINDOW | win32con.SWP_NOZORDER |
+                    win32con.SWP_NOMOVE
+                    )
+        except Exception:
+            print("error: SetWindowPos" + str(hwnd))
+
     def switch_to_nth_stack(self, stack_idx):
+        if self.cur_stack_idx == stack_idx:
+            return
+        for window in self.window_stack[self.cur_stack_idx]:
+            self.hide_window(window['hwnd'])
+
         self.cur_stack_idx = stack_idx
+        for window in self.window_stack[self.cur_stack_idx]:
+            self.show_window(window['hwnd'])
+
         print("debug: switch_to_nth_stack: " + str(stack_idx)
                                     + ":" + str(self.cur_stack_idx))
         self.move_n_resize()
 
     def send_active_window_to_nth_stack(self, stack_idx):
+        if self.cur_stack_idx == stack_idx:
+            return
         cur_stack = self.window_stack[self.cur_stack_idx]
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
-        for window in cur_stack:
+        for i, window in enumerate(cur_stack):
             if hwnd == window['hwnd']:
-                print("found hwnd")
-                target_window = cur_stack.index(window)
+                print(i)
+                target_window = i
 
-        if target_window == -1:
-            pass
-        else:
+        if target_window != -1:
             self.window_stack[stack_idx].append(cur_stack[target_window])
-            self.cur_stack.pop[target_window]
+            cur_stack.pop(target_window)
+            self.hide_window(cur_stack[target_window]['hwnd'])
             print("debug: send_to_nth_stack: " + str(stack_idx))
             self.move_n_resize()
 
@@ -210,9 +243,23 @@ class WindowManager():
         print("debug: change_main_stack: " + str(num))
         self.move_n_resize()
 
+    def recover_windows(self):
+        for i, stack in enumerate(self.window_stack):
+            if i == self.cur_stack_idx:
+                continue
+            else:
+                for window in stack:
+                    self.show_window(window['hwnd'])
+        self.move_n_resize()
 
-def isKeyDown(key):
-    state = GetAsyncKeyState(key)
+
+def isKeyDown(key, isAsync=True):
+    state = 0
+    if isAsync:
+        state = win32api.GetAsyncKeyState(key)
+    else:
+        state = win32api.GetKeyState(key)
+
     if state != 0 and state != 0:
         return True
     else:
@@ -229,6 +276,7 @@ if __name__ == '__main__':
         ##########
         if isKeyDown(win32con.VK_NONCONVERT):
             if isKeyDown(ord('Q')):
+                manager.recover_windows()
                 break
             elif isKeyDown(win32con.VK_TAB):
                 manager.focus_next()
@@ -246,3 +294,6 @@ if __name__ == '__main__':
                 manager.change_main_stack(+1)
             elif isKeyDown(0xBE):       # period
                 manager.change_main_stack(-1)
+            else:
+                continue
+        time.sleep(0.2)
