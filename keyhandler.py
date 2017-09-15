@@ -39,8 +39,8 @@ class KeyHandler:
                                 # lParam[2] == 32, lParam[3])
             event = KeyboardEvent(event_types[wParam], key_code)
 
-            if key_code == 13:     # enter
-                sys.exit(0)
+            # if key_code == 13:     # enter
+            #     sys.exit(0)
 
             if key_code == 29:     # noconvert down
                 if event_types[wParam] == "key down":
