@@ -60,6 +60,8 @@ class EntryPoint():
                         manager.move_center_line(-20)
                     elif e.key_code == ord('L'):
                         manager.move_center_line(+20)
+                    elif e.key_code == 0x20:    #space
+                        manager.change_way_to_tile()
         # print(e)
 
 if __name__ == '__main__':

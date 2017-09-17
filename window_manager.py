@@ -67,6 +67,7 @@ class WindowManager():
         self.cur_vd_idx = 0
 
         self.max_main = max_main
+        self.way_to_tile = 0
 
         self.ignore_list = ["Windows.UI.Core.CoreWindow"] + ignore_list
 
@@ -147,8 +148,56 @@ class WindowManager():
         num_win = len(cur_stack)
         if num_win is 0:
             return
-        elif num_win <= self.max_main:
-            win_h = math.floor((self.work_height)/num_win)
+        if self.way_to_tile == 0:
+            if num_win <= self.max_main:
+                win_h = math.floor((self.work_height)/num_win)
+                win_w = self.work_width
+
+                for i in range(num_win):
+                    try:
+                        win32gui.SetWindowPos(
+                                cur_stack[i].hwnd,
+                                win32con.HWND_TOPMOST,
+                                0, win_h*i + self.taskbar_height, win_w, win_h,
+                                win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
+                                )
+                    except Exception:
+                        print("error: SetWindowPos" + str(cur_stack[i]))
+                        # # exit(0)
+
+            else:
+                sub_win_w = math.floor(self.work_width/2) - self.offset_from_center
+                main_win_w = self.work_width - sub_win_w
+                main_win_h = math.floor((self.work_height) / (self.max_main))
+                sub_win_h = math.floor((self.work_height) / (num_win-self.max_main))
+
+                for i in range(self.max_main):
+                    try:
+                        win32gui.SetWindowPos(
+                                cur_stack[i].hwnd,
+                                win32con.HWND_TOPMOST,
+                                0, main_win_h*i + self.taskbar_height,
+                                main_win_w, main_win_h,
+                                win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
+                                )
+                    except Exception:
+                        print("error: SetWindowPos" + str(cur_stack[i]))
+                        # exit(0)
+
+                for i in range(num_win-self.max_main):
+                    try:
+                        win32gui.SetWindowPos(
+                                cur_stack[i+self.max_main].hwnd,
+                                win32con.HWND_TOPMOST,
+                                main_win_w, sub_win_h*i + self.taskbar_height,
+                                sub_win_w, sub_win_h,
+                                win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
+                                )
+                    except Exception:
+                        print("error: SetWindowPos" + str(cur_stack[i]))
+                        # exit(0)
+        else:
+            win_h = self.work_height
             win_w = self.work_width
 
             for i in range(num_win):
@@ -156,44 +205,15 @@ class WindowManager():
                     win32gui.SetWindowPos(
                             cur_stack[i].hwnd,
                             win32con.HWND_TOPMOST,
-                            0, win_h*i + self.taskbar_height, win_w, win_h,
+                            0, self.taskbar_height, win_w, win_h,
                             win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                             )
                 except Exception:
-                    print("error: SetWindowPos" + str(cur_stack[i]))
-                    # # exit(0)
+                    print ("error: SetWindowpos" + str(cur_stack[i]))
 
-        else:
-            sub_win_w = math.floor(self.work_width/2) - self.offset_from_center
-            main_win_w = self.work_width - sub_win_w
-            main_win_h = math.floor((self.work_height) / (self.max_main))
-            sub_win_h = math.floor((self.work_height) / (num_win-self.max_main))
-
-            for i in range(self.max_main):
-                try:
-                    win32gui.SetWindowPos(
-                            cur_stack[i].hwnd,
-                            win32con.HWND_TOPMOST,
-                            0, main_win_h*i + self.taskbar_height,
-                            main_win_w, main_win_h,
-                            win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
-                            )
-                except Exception:
-                    print("error: SetWindowPos" + str(cur_stack[i]))
-                    # exit(0)
-
-            for i in range(num_win-self.max_main):
-                try:
-                    win32gui.SetWindowPos(
-                            cur_stack[i+self.max_main].hwnd,
-                            win32con.HWND_TOPMOST,
-                            main_win_w, sub_win_h*i + self.taskbar_height,
-                            sub_win_w, sub_win_h,
-                            win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
-                            )
-                except Exception:
-                    print("error: SetWindowPos" + str(cur_stack[i]))
-                    # exit(0)
+    def change_way_to_tile(self):
+        self.way_to_tile = (self.way_to_tile + 1) % 2
+        self.move_n_resize()
 
     def close_active_window(self):
         hwnd = win32gui.GetForegroundWindow()
