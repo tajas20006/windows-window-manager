@@ -23,9 +23,9 @@ class EntryPoint():
         if e.event_type == 'key down':
             if mod_flag & self.noconvert:
                 if mod_flag & self.shift:
-                    if e.key_code == ord('A'):
+                    if e.key_code == ord('1'):
                         manager.send_active_window_to_nth_stack(0)
-                    elif e.key_code == ord('S'):
+                    elif e.key_code == ord('2'):
                         manager.send_active_window_to_nth_stack(1)
                     elif e.key_code == ord('C'):
                         manager.close_active_window()
@@ -34,9 +34,9 @@ class EntryPoint():
                         ctypes.windll.user32.PostThreadMessageW(hookThread.ident, win32con.WM_QUIT, 0, 0)
                         self.flag = False
                 else:
-                    if e.key_code == ord('A'):
+                    if e.key_code == ord('1'):
                         manager.switch_to_nth_stack(0)
-                    elif e.key_code == ord('S'):
+                    elif e.key_code == ord('2'):
                         manager.switch_to_nth_stack(1)
                     elif e.key_code == 13:    #enter
                         manager.move_active_to_main_stack()
@@ -46,6 +46,10 @@ class EntryPoint():
                         manager.change_max_main(-1)
                     elif e.key_code == 9:    #tab
                         manager.focus_next()
+                    elif e.key_code == ord('J'):
+                        manager.focus_next()
+                    elif e.key_code == ord('K'):
+                        manager.focus_next(-1)
                     elif e.key_code == ord('I'):
                         manager.show_window_information()
         # print(e)
