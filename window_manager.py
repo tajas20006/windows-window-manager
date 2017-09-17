@@ -34,8 +34,6 @@ class WindowInfo():
                 self.class_name, self.title, self.pid)
 
 
-
-
 class WindowManager():
     def __init__(self, title="WindowManager", max_main=1, num_stacks=2,
                     ignore_list=[]):
@@ -70,6 +68,8 @@ class WindowManager():
 
         self.ignore_list = ["Windows.UI.Core.CoreWindow",
                                 "ApplicationFrameWindow"] + ignore_list
+
+        self.offset_from_center = 0
 
     def _isRealWindow(self, hwnd):
         '''Return True iff given window is a real Windows application window.'''
@@ -160,7 +160,8 @@ class WindowManager():
                     # # exit(0)
 
         else:
-            win_w = math.floor(self.work_width/2)
+            sub_win_w = math.floor(self.work_width/2) - self.offset_from_center
+            main_win_w = self.work_width - sub_win_w
             main_win_h = math.floor((self.work_height) / (self.max_main))
             sub_win_h = math.floor((self.work_height) / (num_win-self.max_main))
 
@@ -170,7 +171,7 @@ class WindowManager():
                             cur_stack[i].hwnd,
                             win32con.HWND_TOPMOST,
                             0, main_win_h*i + self.taskbar_height,
-                            win_w, main_win_h,
+                            main_win_w, main_win_h,
                             win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                             )
                 except Exception:
@@ -182,8 +183,8 @@ class WindowManager():
                     win32gui.SetWindowPos(
                             cur_stack[i+self.max_main].hwnd,
                             win32con.HWND_TOPMOST,
-                            win_w, sub_win_h*i + self.taskbar_height,
-                            win_w, sub_win_h,
+                            main_win_w, sub_win_h*i + self.taskbar_height,
+                            sub_win_w, sub_win_h,
                             win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                             )
                 except Exception:
@@ -287,6 +288,10 @@ class WindowManager():
         if self.max_main <= 0:
             self.max_main = 1
         print("debug: change_max_main: " + str(num))
+        self.move_n_resize()
+
+    def move_center_line(self, num=10):
+        self.offset_from_center += num
         self.move_n_resize()
 
     def recover_windows(self):

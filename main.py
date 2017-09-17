@@ -52,6 +52,10 @@ class EntryPoint():
                         manager.focus_next(-1)
                     elif e.key_code == ord('I'):
                         manager.show_window_information()
+                    elif e.key_code == ord('H'):
+                        manager.move_center_line(-20)
+                    elif e.key_code == ord('L'):
+                        manager.move_center_line(+20)
         # print(e)
 
 if __name__ == '__main__':
