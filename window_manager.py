@@ -7,6 +7,7 @@ import win32api
 import win32con
 import win32gui
 import win32process
+import win32com.client
 
 import wmi
 
@@ -17,6 +18,7 @@ class WindowManager():
         print('debug: new manager is created')
 
         self.c = wmi.WMI()
+        self.shell = win32com.client.Dispatch("WScript.Shell")
 
         monitors = win32api.EnumDisplayMonitors(None, None)
         (h_first_mon, _, (_,_,_,_)) = monitors[0]
@@ -111,8 +113,8 @@ class WindowManager():
         # rm the duplicate windows
         for rm_item in rm_list_new:
             new_stack.remove(rm_item)
-        print("new: " + str(new_stack))
-        print("old: " + str(old_stack))
+        # print("new: " + str(new_stack))
+        # print("old: " + str(old_stack))
         # prepend new windows
         self.window_stack[self.cur_stack_idx] = new_stack + old_stack
 
@@ -178,14 +180,23 @@ class WindowManager():
 
     def focus_next(self, num=1):
         cur_stack = self.window_stack[self.cur_stack_idx]
-        self.cur_idx = (self.cur_idx + num) % len(cur_stack)
-        self.cur_win = cur_stack[self.cur_idx]
-        try:
-            win32gui.SetForegroundWindow(self.cur_win['hwnd'])
-            print("debug: focus_next: " + str(self.cur_idx))
-        except Exception:
-            print ("error: SetForegroundWindow" + str(self.cur_win))
-            # exit(0)
+        hwnd = win32gui.GetForegroundWindow()
+        target_window = -1
+        for i, window in enumerate(cur_stack):
+            if hwnd == window['hwnd']:
+                print(i)
+                target_window = i
+
+        if target_window != -1:
+            next_idx = (target_window + num) % len(cur_stack)
+            try:
+                # according to https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
+                self.shell.SendKeys('%')
+                win32gui.SetForegroundWindow(cur_stack[next_idx]['hwnd'])
+                print("debug: focus_next: " + str(next_idx))
+            except Exception:
+                print ("error: SetForegroundWindow" + str(next_idx))
+                # exit(0)
 
     def hide_window(self, hwnd):
         try:
@@ -270,6 +281,18 @@ class WindowManager():
                 for window in stack:
                     self.show_window(window['hwnd'])
         self.move_n_resize()
+
+    def show_window_information(self):
+        hwnd = win32gui.GetForegroundWindow()
+        target_window = -1
+        for i, window in enumerate(self.window_stack[self.cur_stack_idx]):
+            if hwnd == window['hwnd']:
+                print(i)
+                target_window = i
+        if target_window != -1:
+            window = self.window_stack[self.cur_stack_idx][target_window]
+            text = "hwnd: {}, class: {}\ntitle: {}, pid: {}".format(window['hwnd'], window['class_name'], window['title'], window['pid'])
+            win32gui.MessageBox(None, text, "window information", win32con.MB_ICONEXCLAMATION | win32con.MB_OK)
 
 
 def isKeyDown(key, isAsync=True):

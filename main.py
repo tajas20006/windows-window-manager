@@ -44,7 +44,11 @@ class EntryPoint():
                         manager.change_max_main(+1)
                     elif e.key_code == 0xBE:    #period
                         manager.change_max_main(-1)
-        print(e)
+                    elif e.key_code == 9:    #tab
+                        manager.focus_next()
+                    elif e.key_code == ord('I'):
+                        manager.show_window_information()
+        # print(e)
 
 if __name__ == '__main__':
     manager = window_manager.WindowManager(ignore_list=['TaskManagerWindow'])
