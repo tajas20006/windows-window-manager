@@ -24,9 +24,9 @@ class EntryPoint():
             if mod_flag & self.noconvert:
                 if mod_flag & self.shift:
                     if e.key_code == ord('1'):
-                        manager.send_active_window_to_nth_stack(0)
+                        manager.send_active_window_to_n_th_vd(0)
                     elif e.key_code == ord('2'):
-                        manager.send_active_window_to_nth_stack(1)
+                        manager.send_active_window_to_n_th_vd(1)
                     elif e.key_code == ord('C'):
                         manager.close_active_window()
                     elif e.key_code == ord('Q'):
@@ -39,11 +39,11 @@ class EntryPoint():
                         manager.shuffle_windows(-1)
                 else:
                     if e.key_code == ord('1'):
-                        manager.switch_to_nth_stack(0)
+                        manager.switch_to_n_th_vd(0)
                     elif e.key_code == ord('2'):
-                        manager.switch_to_nth_stack(1)
+                        manager.switch_to_n_th_vd(1)
                     elif e.key_code == 13:    #enter
-                        manager.move_active_to_main_stack()
+                        manager.move_active_to_first_in_stack()
                     elif e.key_code == 0xBC:    #comma
                         manager.change_max_main(+1)
                     elif e.key_code == 0xBE:    #period
