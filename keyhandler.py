@@ -25,7 +25,9 @@ class KeyHandler:
         import win32con, win32api, win32gui, atexit
 
         event_types = {win32con.WM_KEYDOWN: 'key down',
-                    win32con.WM_KEYUP: 'key up'
+                    win32con.WM_KEYUP: 'key up',
+                    win32con.WM_SYSKEYDOWN: 'key down',
+                    win32con.WM_SYSKEYUP: 'key up'
                     }
 
         def low_level_handler(nCode, wParam, lParam):
@@ -90,9 +92,13 @@ class KeyHandler:
 
         while True:
             msg = win32gui.GetMessage(None, 0, 0)
-            win32gui.TranslateMessage(byref(msg))
-            win32gui.DispatchMessage(byref(msg))
-
+            print(msg)
+            try:
+                win32gui.TranslateMessage(byref(msg))
+                win32gui.DispatchMessage(byref(msg))
+            except Exception:
+                print("exit keyhandle")
+                break
 
 if __name__ == '__main__':
     def print_event(e, mod_flag):

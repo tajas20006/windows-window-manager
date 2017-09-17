@@ -4,6 +4,11 @@ import sys
 import threading
 import time
 
+import ctypes
+import win32con
+import win32gui
+
+
 class EntryPoint():
     def __init__(self, manager):
         self.noconvert = 1
@@ -12,6 +17,7 @@ class EntryPoint():
         self.shift = 8
         self.alt = 16
         self.manager = manager
+        self.flag = True
 
     def print_event(self, e, mod_flag):
         if e.event_type == 'key down':
@@ -25,7 +31,8 @@ class EntryPoint():
                         manager.close_active_window()
                     elif e.key_code == ord('Q'):
                         manager.recover_windows()
-                        sys.exit(0)
+                        ctypes.windll.user32.PostThreadMessageW(hookThread.ident, win32con.WM_QUIT, 0, 0)
+                        self.flag = False
                 else:
                     if e.key_code == ord('A'):
                         manager.switch_to_nth_stack(0)
@@ -49,8 +56,10 @@ if __name__ == '__main__':
     hookThread = threading.Thread(target=handle.listen)
     hookThread.start()
 
-    while True:
+    while entry.flag:
+        print(entry.flag)
         manager.move_n_resize()
         time.sleep(2)
 
     hookThread.join()
+    win32gui.MessageBox(None, "window manager exit", "window information", win32con.MB_ICONEXCLAMATION | win32con.MB_OK)
