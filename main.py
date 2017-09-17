@@ -61,7 +61,6 @@ if __name__ == '__main__':
     hookThread.start()
 
     while entry.flag:
-        print(entry.flag)
         manager.move_n_resize()
         time.sleep(2)
 

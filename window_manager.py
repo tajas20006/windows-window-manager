@@ -11,6 +11,31 @@ import win32com.client
 
 import wmi
 
+class WindowInfo():
+    def __init__(self, hwnd=-1, class_name="", title="", pid=-1):
+        self.hwnd = hwnd
+        self.class_name = class_name
+        self.title = title
+        self.pid = pid
+
+    def __eq__(self, other):
+        if isinstance(other, WindowInfo):
+            return self.hwnd == other.hwnd
+        elif isinstance(other, int):
+            return self.hwnd == other
+        else:
+            return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __str__(self):
+        return "hwnd: {}, class: {}\ntitle: {}, pid: {}".format(self.hwnd,
+                self.class_name, self.title, self.pid)
+
+
+
+
 class WindowManager():
     def __init__(self, title="WindowManager", max_main=1, num_stacks=2,
                     ignore_list=[]):
@@ -68,13 +93,9 @@ class WindowManager():
             for ignore_item in self.ignore_list:
                 if class_name == ignore_item:
                     return
-            window = {}
-            window['hwnd'] = hwnd
-            window['class_name'] = class_name
-            window['title'] = win32gui.GetWindowText(hwnd)
-
             _, pid = win32process.GetWindowThreadProcessId(hwnd)
-            window['pid'] = pid
+
+            window = WindowInfo(hwnd, class_name, win32gui.GetWindowText(hwnd), pid)
             windows.append(window)
 
         windows = []
@@ -98,7 +119,7 @@ class WindowManager():
         for old in old_stack:
             still_here = False
             for new in new_stack:
-                if old['hwnd'] == new['hwnd']:
+                if old == new:
                     # if same window is still existing
                     rm_list_new.append(new)
                     still_here = True
@@ -113,15 +134,12 @@ class WindowManager():
         # rm the duplicate windows
         for rm_item in rm_list_new:
             new_stack.remove(rm_item)
-        # print("new: " + str(new_stack))
-        # print("old: " + str(old_stack))
         # prepend new windows
         self.window_stack[self.cur_stack_idx] = new_stack + old_stack
 
     def move_n_resize(self):
         self.manage_window_stack()
         cur_stack = self.window_stack[self.cur_stack_idx]
-        # print(cur_stack)
         num_win = len(cur_stack)
         if num_win is 0:
             return
@@ -132,7 +150,7 @@ class WindowManager():
             for i in range(num_win):
                 try:
                     win32gui.SetWindowPos(
-                            cur_stack[i]['hwnd'],
+                            cur_stack[i].hwnd,
                             win32con.HWND_TOPMOST,
                             0, win_h*i + self.taskbar_height, win_w, win_h,
                             win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
@@ -149,7 +167,7 @@ class WindowManager():
             for i in range(self.max_main):
                 try:
                     win32gui.SetWindowPos(
-                            cur_stack[i]['hwnd'],
+                            cur_stack[i].hwnd,
                             win32con.HWND_TOPMOST,
                             0, main_win_h*i + self.taskbar_height,
                             win_w, main_win_h,
@@ -162,7 +180,7 @@ class WindowManager():
             for i in range(num_win-self.max_main):
                 try:
                     win32gui.SetWindowPos(
-                            cur_stack[i+self.max_main]['hwnd'],
+                            cur_stack[i+self.max_main].hwnd,
                             win32con.HWND_TOPMOST,
                             win_w, sub_win_h*i + self.taskbar_height,
                             win_w, sub_win_h,
@@ -183,7 +201,7 @@ class WindowManager():
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
         for i, window in enumerate(cur_stack):
-            if hwnd == window['hwnd']:
+            if hwnd == window:
                 print(i)
                 target_window = i
 
@@ -192,7 +210,7 @@ class WindowManager():
             try:
                 # according to https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
                 self.shell.SendKeys('%')
-                win32gui.SetForegroundWindow(cur_stack[next_idx]['hwnd'])
+                win32gui.SetForegroundWindow(cur_stack[next_idx].hwnd)
                 print("debug: focus_next: " + str(next_idx))
             except Exception:
                 print ("error: SetForegroundWindow" + str(next_idx))
@@ -226,11 +244,11 @@ class WindowManager():
         if self.cur_stack_idx == stack_idx:
             return
         for window in self.window_stack[self.cur_stack_idx]:
-            self.hide_window(window['hwnd'])
+            self.hide_window(window.hwnd)
 
         self.cur_stack_idx = stack_idx
         for window in self.window_stack[self.cur_stack_idx]:
-            self.show_window(window['hwnd'])
+            self.show_window(window.hwnd)
 
         print("debug: switch_to_nth_stack: " + str(stack_idx)
                                     + ":" + str(self.cur_stack_idx))
@@ -243,13 +261,12 @@ class WindowManager():
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
         for i, window in enumerate(cur_stack):
-            if hwnd == window['hwnd']:
-                print(i)
+            if hwnd == window:
                 target_window = i
 
         if target_window != -1:
             self.window_stack[stack_idx].append(cur_stack[target_window])
-            self.hide_window(cur_stack[target_window]['hwnd'])
+            self.hide_window(cur_stack[target_window].hwnd)
             cur_stack.pop(target_window)
             print("debug: send_to_nth_stack: " + str(stack_idx))
             self.move_n_resize()
@@ -258,8 +275,7 @@ class WindowManager():
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
         for i, window in enumerate(self.window_stack[self.cur_stack_idx]):
-            if hwnd == window['hwnd']:
-                print(i)
+            if hwnd == window:
                 target_window = i
         if target_window != -1:
             window = self.window_stack[self.cur_stack_idx].pop(target_window)
@@ -279,19 +295,18 @@ class WindowManager():
                 continue
             else:
                 for window in stack:
-                    self.show_window(window['hwnd'])
+                    self.show_window(window.hwnd)
         self.move_n_resize()
 
     def show_window_information(self):
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
         for i, window in enumerate(self.window_stack[self.cur_stack_idx]):
-            if hwnd == window['hwnd']:
-                print(i)
+            if hwnd == window:
                 target_window = i
         if target_window != -1:
             window = self.window_stack[self.cur_stack_idx][target_window]
-            text = "hwnd: {}, class: {}\ntitle: {}, pid: {}".format(window['hwnd'], window['class_name'], window['title'], window['pid'])
+            print(window)
             win32gui.MessageBox(None, text, "window information", win32con.MB_ICONEXCLAMATION | win32con.MB_OK)
 
 
@@ -306,6 +321,7 @@ def isKeyDown(key, isAsync=True):
         return True
     else:
         return False
+
 
 if __name__ == '__main__':
     print('INFO: Start window manager')
