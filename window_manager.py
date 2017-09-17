@@ -9,14 +9,18 @@ import win32gui
 import win32process
 import win32com.client
 
+import ctypes
+from ctypes import wintypes
+
 import wmi
 
 class WindowInfo():
-    def __init__(self, hwnd=-1, class_name="", title="", pid=-1):
+    def __init__(self, hwnd=-1, class_name="", title="", pid=-1, process_name=""):
         self.hwnd = hwnd
         self.class_name = class_name
         self.title = title
         self.pid = pid
+        self.process_name = process_name
 
     def __eq__(self, other):
         if isinstance(other, WindowInfo):
@@ -30,8 +34,8 @@ class WindowInfo():
         return not self.__eq__(other)
 
     def __str__(self):
-        return "hwnd: {}, class: {}\ntitle: {}, pid: {}".format(self.hwnd,
-                self.class_name, self.title, self.pid)
+        return "hwnd: {}, class: {}\ntitle: {}, pid: {}\nprocess name: {}".format(self.hwnd,
+                self.class_name, self.title, self.pid, self.process_name)
 
 
 class WindowManager():
@@ -41,6 +45,7 @@ class WindowManager():
         print('debug: new manager is created')
 
         self.c = wmi.WMI()
+        self.dwm = ctypes.cdll.dwmapi
         self.shell = win32com.client.Dispatch("WScript.Shell")
 
         monitors = win32api.EnumDisplayMonitors(None, None)
@@ -66,13 +71,16 @@ class WindowManager():
         self.cur_idx = 0
         self.cur_win = None
 
-        self.ignore_list = ["Windows.UI.Core.CoreWindow",
-                                "ApplicationFrameWindow"] + ignore_list
+        self.ignore_list = ["Windows.UI.Core.CoreWindow"] + ignore_list
 
         self.offset_from_center = 0
 
     def _isRealWindow(self, hwnd):
         '''Return True iff given window is a real Windows application window.'''
+        status = ctypes.wintypes.DWORD()
+        self.dwm.DwmGetWindowAttribute(ctypes.wintypes.HWND(hwnd), ctypes.wintypes.DWORD(14), ctypes.byref(status), ctypes.sizeof(status))
+        if status.value != 0:
+            return False
         if not win32gui.IsWindowVisible(hwnd):
             return False
         if win32gui.GetParent(hwnd) != 0:
@@ -94,8 +102,7 @@ class WindowManager():
                 if class_name == ignore_item:
                     return
             _, pid = win32process.GetWindowThreadProcessId(hwnd)
-
-            window = WindowInfo(hwnd, class_name, win32gui.GetWindowText(hwnd), pid)
+            window = WindowInfo(hwnd, class_name, win32gui.GetWindowText(hwnd), pid, self.get_process_name(pid))
             windows.append(window)
 
         windows = []
@@ -283,6 +290,21 @@ class WindowManager():
             self.window_stack[self.cur_stack_idx][:0] = [window]
             self.move_n_resize()
 
+    def shuffle_windows(self, num=1):
+        cur_stack = self.window_stack[self.cur_stack_idx]
+        hwnd = win32gui.GetForegroundWindow()
+        target_window = -1
+        for i, window in enumerate(cur_stack):
+            if hwnd == window:
+                print(i)
+                target_window = i
+
+        if target_window != -1:
+            next_idx = (target_window + num) % len(cur_stack)
+            window = cur_stack.pop(target_window)
+            cur_stack[next_idx:next_idx] = [window]
+            self.move_n_resize()
+
     def change_max_main(self, num=1):
         self.max_main += num
         if self.max_main <= 0:
@@ -312,7 +334,9 @@ class WindowManager():
         if target_window != -1:
             window = self.window_stack[self.cur_stack_idx][target_window]
             print(window)
-            win32gui.MessageBox(None, text, "window information", win32con.MB_ICONEXCLAMATION | win32con.MB_OK)
+            # win32gui.MessageBox(None, str(window), "window information", win32con.MB_ICONEXCLAMATION | win32con.MB_OK)
+        else:
+            print(target_window)
 
 
 def isKeyDown(key, isAsync=True):

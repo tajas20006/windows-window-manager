@@ -33,6 +33,10 @@ class EntryPoint():
                         manager.recover_windows()
                         ctypes.windll.user32.PostThreadMessageW(hookThread.ident, win32con.WM_QUIT, 0, 0)
                         self.flag = False
+                    elif e.key_code == ord('J'):
+                        manager.shuffle_windows(+1)
+                    elif e.key_code == ord('K'):
+                        manager.shuffle_windows(-1)
                 else:
                     if e.key_code == ord('1'):
                         manager.switch_to_nth_stack(0)
