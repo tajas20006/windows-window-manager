@@ -1,5 +1,6 @@
 import keyhandler
 import windowmanager
+
 import sys
 import threading
 import time
@@ -28,6 +29,11 @@ class EntryPoint():
                         manager.recover_windows()
                         ctypes.windll.user32.PostThreadMessageW(
                                 hook_thread.ident,
+                                win32con.WM_QUIT,
+                                0, 0
+                                )
+                        ctypes.windll.user32.PostThreadMessageW(
+                                manager.thr.ident,
                                 win32con.WM_QUIT,
                                 0, 0
                                 )
@@ -83,6 +89,7 @@ if __name__ == '__main__':
         time.sleep(2)
 
     hook_thread.join()
+    manager.thr.join()
     win32gui.MessageBox(
             None,
             "window manager exit",

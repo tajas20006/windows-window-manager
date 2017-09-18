@@ -1,7 +1,10 @@
 #!/usr/bin/python
 # -*- coding: utf-8 -*-
+import drawtext
+
 import math
 import time
+import threading
 
 import win32api
 import win32con
@@ -52,6 +55,10 @@ class WindowManager():
         self.c = wmi.WMI()
         self.dwm = ctypes.cdll.dwmapi
         self.shell = win32com.client.Dispatch("WScript.Shell")
+
+        self.text = drawtext.TextOnTray("[0]:tile")
+        self.thr = threading.Thread(target=self.text.create_text_box)
+        self.thr.start()
 
         monitors = win32api.EnumDisplayMonitors(None, None)
         (h_first_mon, _, (_,_,_,_)) = monitors[0]
@@ -151,6 +158,15 @@ class WindowManager():
         # prepend new windows
         self.workspaces[self.workspace_idx] = new_stack + old_stack
 
+    def _update_taskbar_text(self):
+        layout_str = ""
+        if self.layout[self.workspace_idx] == 0:
+            layout_str = "tile"
+        else:
+            layout_str = "full"
+        new_text = "[{}]:{}".format(str(self.workspace_idx+1), layout_str)
+        self.text.customDraw(new_text)
+
     def arrange_windows(self):
         self._manage_windows()
         workspace = self.workspaces[self.workspace_idx]
@@ -225,6 +241,7 @@ class WindowManager():
         self.layout[self.workspace_idx] =\
                 (self.layout[self.workspace_idx] + 1) % 2
         self.arrange_windows()
+        self._update_taskbar_text()
 
     def close_window(self):
         hwnd = win32gui.GetForegroundWindow()
@@ -289,6 +306,7 @@ class WindowManager():
         print("debug: switch_to_nth_ws: " + str(dstIdx)
                                     + ":" + str(self.workspace_idx))
         self.arrange_windows()
+        self._update_taskbar_text()
 
     def send_to_nth_ws(self, dstIdx):
         if self.workspace_idx == dstIdx:
@@ -362,6 +380,12 @@ class WindowManager():
             window = self.workspaces[self.workspace_idx][target_window]
             print(window)
             # ret = win32gui.MessageBox(None, str(window), "window information", win32con.MB_YESNO)
+        else:
+            class_name = win32gui.GetClassName(hwnd)
+            title = win32gui.GetWindowText(hwnd)
+            _, pid = win32process.GetWindowThreadProcessId(hwnd)
+            print ("hwnd: {}, class: {},pid: {}\ntitle: {}".format(hwnd, class_name, pid, title))
+
 
     def show_caption(self, hwnd=-1):
         if hwnd == -1:
