@@ -5,15 +5,17 @@ from collections import namedtuple
 
 KeyboardEvent = namedtuple('KeyboardEvent', ['event_type', 'key_code'])
 
+NOCONVERT = 1
+WIN = 2
+CTRL = 4
+SHIFT = 8
+ALT = 16
+
 class KeyHandler:
-    def __init__(self):
+    def __init__(self, mod_key=NOCONVERT):
         self.handlers = []
         self.mod_flag = 0
-        self.noconvert = 1
-        self.win = 2
-        self.ctrl = 4
-        self.shift = 8
-        self.alt = 16
+        self.mod_key = mod_key
 
     def listen(self):
         """
@@ -39,31 +41,31 @@ class KeyHandler:
 
             if key_code == 29:     # noconvert down
                 if event_types[wParam] == "key down":
-                    self.mod_flag |= self.noconvert
+                    self.mod_flag |= NOCONVERT
                 elif event_types[wParam] == "key up":
-                    self.mod_flag -= self.noconvert
+                    self.mod_flag -= NOCONVERT
             elif key_code == 164 or key_code == 165:    # alt
                 if event_types[wParam] == "key down":
-                    self.mod_flag |= self.alt
+                    self.mod_flag |= ALT
                 elif event_types[wParam] == "key up":
-                    self.mod_flag -= self.alt
+                    self.mod_flag -= ALT
             elif key_code == 91:    # win
                 if event_types[wParam] == "key down":
-                    self.mod_flag |= self.win
+                    self.mod_flag |= WIN
                 elif event_types[wParam] == "key up":
-                    self.mod_flag -= self.win
+                    self.mod_flag -= WIN
             elif key_code == 162 or key_code == 163:    # ctrl
                 if event_types[wParam] == "key down":
-                    self.mod_flag |= self.ctrl
+                    self.mod_flag |= CTRL
                 elif event_types[wParam] == "key up":
-                    self.mod_flag -= self.ctrl
+                    self.mod_flag -= CTRL
             elif key_code == 160 or key_code == 161:    # shift
                 if event_types[wParam] == "key down":
-                    self.mod_flag |= self.shift
+                    self.mod_flag |= SHIFT
                 elif event_types[wParam] == "key up":
-                    self.mod_flag -= self.shift
+                    self.mod_flag -= SHIFT
 
-            if self.mod_flag & self.noconvert:
+            if self.mod_flag & self.mod_key:
                 for handler in self.handlers:
                     handler(event, self.mod_flag)
                 # capture the key press
@@ -92,7 +94,6 @@ class KeyHandler:
 
         while True:
             msg = win32gui.GetMessage(None, 0, 0)
-            print(msg)
             try:
                 win32gui.TranslateMessage(byref(msg))
                 win32gui.DispatchMessage(byref(msg))
