@@ -100,11 +100,3 @@ class KeyHandler:
             except Exception:
                 print("exit keyhandle")
                 break
-
-if __name__ == '__main__':
-    def print_event(e, mod_flag):
-        print(e)
-
-    handle = KeyHandler()
-    handle.handlers.append(print_event)
-    handle.listen()

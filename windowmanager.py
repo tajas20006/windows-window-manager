@@ -45,7 +45,7 @@ class WindowInfo():
 
 class WindowManager():
     def __init__(self, title="WindowManager", master_n=1, workspace_n=2,
-                    ignore_list=[]):
+                    ignore_list=[], layout = 0):
         # logger.debug('new manager is created')
         print('debug: new manager is created')
 
@@ -66,13 +66,11 @@ class WindowManager():
         self.taskbar_h = self.monitor_h - self.work_h
 
         self.workspace_n = workspace_n
-        self.workspaces = []
-        for i in range(self.workspace_n):
-            self.workspaces.append(list())
+        self.workspaces = [[] for _ in range(self.workspace_n)]
         self.workspace_idx = 0
 
-        self.master_n = master_n
-        self.layout = 0
+        self.master_n = [master_n] * self.workspace_n
+        self.layout = [layout] * self.workspace_n
 
         self.ignore_list = ignore_list
 
@@ -156,12 +154,13 @@ class WindowManager():
     def arrange_windows(self):
         self._manage_windows()
         workspace = self.workspaces[self.workspace_idx]
+        cur_master_n = self.master_n[self.workspace_idx]
         win_n = len(workspace)
         if win_n is 0:
             return
-        if self.layout == 0:
-            if win_n <= self.master_n:
-                win_h = math.floor((self.work_h)/win_n)
+        if self.layout[self.workspace_idx] == 0:
+            if win_n <= cur_master_n:
+                win_h = math.floor(self.work_h / win_n)
                 win_w = self.work_w
 
                 for i in range(win_n):
@@ -179,11 +178,10 @@ class WindowManager():
             else:
                 sub_w = math.floor(self.work_w/2) - self.offset_from_center
                 main_w = self.work_w - sub_w
-                main_h = math.floor((self.work_h) / (self.master_n))
-                sub_h = math.floor((self.work_h) /\
-                                                (win_n-self.master_n))
+                main_h = math.floor(self.work_h / cur_master_n)
+                sub_h = math.floor(self.work_h / (win_n-cur_master_n))
 
-                for i in range(self.master_n):
+                for i in range(cur_master_n):
                     try:
                         win32gui.SetWindowPos(
                                 workspace[i].hwnd,
@@ -196,10 +194,10 @@ class WindowManager():
                         print("error: SetWindowPos" + str(workspace[i]))
                         # exit(0)
 
-                for i in range(win_n-self.master_n):
+                for i in range(win_n-cur_master_n):
                     try:
                         win32gui.SetWindowPos(
-                                workspace[i+self.master_n].hwnd,
+                                workspace[i+cur_master_n].hwnd,
                                 win32con.HWND_TOPMOST,
                                 main_w, sub_h*i + self.taskbar_h,
                                 sub_w, sub_h,
@@ -224,7 +222,8 @@ class WindowManager():
                     print ("error: SetWindowpos" + str(workspace[i]))
 
     def next_layout(self):
-        self.layout = (self.layout + 1) % 2
+        self.layout[self.workspace_idx] =\
+                (self.layout[self.workspace_idx] + 1) % 2
         self.arrange_windows()
 
     def close_window(self):
@@ -335,9 +334,9 @@ class WindowManager():
             self.arrange_windows()
 
     def inc_master_n(self, num=1):
-        self.master_n += num
-        if self.master_n <= 0:
-            self.master_n = 1
+        self.master_n[self.workspace_idx] += num
+        if self.master_n[self.workspace_idx] <= 0:
+            self.master_n[self.workspace_idx] = 1
         print("debug: inc_master_n: " + str(num))
         self.arrange_windows()
 
@@ -397,39 +396,3 @@ class WindowManager():
                 win32con.SWP_NOSIZE |
                 win32con.SWP_NOZORDER
                 )
-
-
-if __name__ == '__main__':
-    print('INFO: Start window manager')
-    manager = WindowManager(ignore_list=['TaskManagerWindow'])
-
-    while True:
-        manager.arrange_windows()
-        ##########
-        # CONFIG #
-        ##########
-        if isKeyDown(win32con.VK_NONCONVERT):
-            if isKeyDown(ord('Q')):
-                manager.recover_windows()
-                break
-            elif isKeyDown(win32con.VK_TAB):
-                manager.focus_up()
-            elif isKeyDown(ord('C')):
-                manager.close_window()
-            elif isKeyDown(ord('A')):
-                manager.send_to_nth_ws(1)
-            elif isKeyDown(ord('S')):
-                manager.send_to_nth_ws(0)
-            elif isKeyDown(ord('Z')):
-                manager.switch_to_nth_ws(1)
-            elif isKeyDown(ord('X')):
-                manager.switch_to_nth_ws(0)
-            elif isKeyDown(0xBC):       # comma
-                manager.inc_master_n(+1)
-            elif isKeyDown(0xBE):       # period
-                manager.inc_master_n(-1)
-            elif isKeyDown(win32con.VK_RETURN):
-                manager.swap_master()
-            else:
-                continue
-        time.sleep(0.2)

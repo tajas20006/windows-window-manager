@@ -47,9 +47,9 @@ class EntryPoint():
                     elif e.key_code == 0xBE:    #period
                         manager.inc_master_n(-1)
                     elif e.key_code == 0x09:    #tab
-                        manager.focus_up()
+                        manager.focus_up(+1)
                     elif e.key_code == ord('J'):
-                        manager.focus_up()
+                        manager.focus_up(+1)
                     elif e.key_code == ord('K'):
                         manager.focus_up(-1)
                     elif e.key_code == ord('I'):

@@ -101,6 +101,8 @@ ENV/
 .mypy_cache/
 
 
-# git swap file
+# vim swap file
 *.swp
 *.swo
+
+test/
