@@ -1,5 +1,5 @@
 import keyhandler
-import window_manager
+import windowmanager
 import sys
 import threading
 import time
@@ -10,73 +10,82 @@ import win32gui
 
 
 class EntryPoint():
-    def __init__(self, manager):
-        self.noconvert = 1
-        self.win = 2
-        self.ctrl = 4
-        self.shift = 8
-        self.alt = 16
+    def __init__(self, manager, mod_key=keyhandler.NOCONVERT):
+        self.mod_key = mod_key
         self.manager = manager
         self.flag = True
 
     def print_event(self, e, mod_flag):
         if e.event_type == 'key down':
-            if mod_flag & self.noconvert:
-                if mod_flag & self.shift:
-                    if e.key_code == ord('1'):
-                        manager.send_active_window_to_n_th_vd(0)
-                    elif e.key_code == ord('2'):
-                        manager.send_active_window_to_n_th_vd(1)
-                    elif e.key_code == ord('C'):
-                        manager.close_active_window()
+            if mod_flag & self.mod_key:
+                if mod_flag & keyhandler.SHIFT:
+                    for i in range(manager.workspace_n):
+                        if e.key_code == ord(str(i+1)):
+                            manager.send_to_nth_vd(i)
+                    if e.key_code == ord('C'):
+                        manager.close_window()
                     elif e.key_code == ord('Q'):
                         manager.recover_windows()
-                        ctypes.windll.user32.PostThreadMessageW(hookThread.ident, win32con.WM_QUIT, 0, 0)
+                        ctypes.windll.user32.PostThreadMessageW(
+                                hook_thread.ident,
+                                win32con.WM_QUIT,
+                                0, 0
+                                )
                         self.flag = False
                     elif e.key_code == ord('J'):
-                        manager.shuffle_windows(+1)
+                        manager.swap_windows(+1)
                     elif e.key_code == ord('K'):
-                        manager.shuffle_windows(-1)
+                        manager.swap_windows(-1)
                 else:
-                    if e.key_code == ord('1'):
-                        manager.switch_to_n_th_vd(0)
-                    elif e.key_code == ord('2'):
-                        manager.switch_to_n_th_vd(1)
-                    elif e.key_code == 13:    #enter
-                        manager.move_active_to_first_in_stack()
+                    for i in range(manager.workspace_n):
+                        if e.key_code == ord(str(i+1)):
+                            manager.switch_to_nth_vd(i)
+                    if e.key_code == 0x0D:    #enter
+                        manager.swap_master()
                     elif e.key_code == 0xBC:    #comma
-                        manager.change_max_main(+1)
+                        manager.inc_master_n(+1)
                     elif e.key_code == 0xBE:    #period
-                        manager.change_max_main(-1)
-                    elif e.key_code == 9:    #tab
-                        manager.focus_next()
+                        manager.inc_master_n(-1)
+                    elif e.key_code == 0x09:    #tab
+                        manager.focus_up()
                     elif e.key_code == ord('J'):
-                        manager.focus_next()
+                        manager.focus_up()
                     elif e.key_code == ord('K'):
-                        manager.focus_next(-1)
+                        manager.focus_up(-1)
                     elif e.key_code == ord('I'):
-                        manager.show_window_information()
+                        manager.show_window_info()
                     elif e.key_code == ord('H'):
-                        manager.move_center_line(-20)
+                        manager.expand_master(-20)
                     elif e.key_code == ord('L'):
-                        manager.move_center_line(+20)
+                        manager.expand_master(+20)
                     elif e.key_code == 0x20:    #space
-                        manager.change_way_to_tile()
+                        manager.next_layout()
+                    elif e.key_code == ord('D'):
+                        manager.toggle_caption()
         # print(e)
 
 if __name__ == '__main__':
-    manager = window_manager.WindowManager(ignore_list=['TaskManagerWindow'])
+    manager = windowmanager.WindowManager(
+            ignore_list=["Windows.UI.Core.CoreWindow", "TaskManagerWindow"],
+            workspace_n=9
+            )
 
-    entry = EntryPoint(manager)
-    handle = keyhandler.KeyHandler()
+    mod_key = keyhandler.NOCONVERT
+    entry = EntryPoint(manager, mod_key)
+    handle = keyhandler.KeyHandler(mod_key)
     handle.handlers.append(entry.print_event)
 
-    hookThread = threading.Thread(target=handle.listen)
-    hookThread.start()
+    hook_thread = threading.Thread(target=handle.listen)
+    hook_thread.start()
 
     while entry.flag:
-        manager.move_n_resize()
+        manager.arrange_windows()
         time.sleep(2)
 
-    hookThread.join()
-    win32gui.MessageBox(None, "window manager exit", "window information", win32con.MB_ICONEXCLAMATION | win32con.MB_OK)
+    hook_thread.join()
+    win32gui.MessageBox(
+            None,
+            "window manager exit",
+            "window information",
+            win32con.MB_ICONEXCLAMATION | win32con.MB_OK
+            )
