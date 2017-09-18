@@ -21,7 +21,7 @@ class EntryPoint():
                 if mod_flag & keyhandler.SHIFT:
                     for i in range(manager.workspace_n):
                         if e.key_code == ord(str(i+1)):
-                            manager.send_to_nth_vd(i)
+                            manager.send_to_nth_ws(i)
                     if e.key_code == ord('C'):
                         manager.close_window()
                     elif e.key_code == ord('Q'):
@@ -39,7 +39,7 @@ class EntryPoint():
                 else:
                     for i in range(manager.workspace_n):
                         if e.key_code == ord(str(i+1)):
-                            manager.switch_to_nth_vd(i)
+                            manager.switch_to_nth_ws(i)
                     if e.key_code == 0x0D:    #enter
                         manager.swap_master()
                     elif e.key_code == 0xBC:    #comma

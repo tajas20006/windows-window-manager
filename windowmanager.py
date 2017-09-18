@@ -277,7 +277,7 @@ class WindowManager():
         except Exception:
             print("error: SetWindowPos" + str(hwnd))
 
-    def switch_to_nth_vd(self, dstIdx):
+    def switch_to_nth_ws(self, dstIdx):
         if self.workspace_idx == dstIdx:
             return
         for window in self.workspaces[self.workspace_idx]:
@@ -287,11 +287,11 @@ class WindowManager():
         for window in self.workspaces[self.workspace_idx]:
             self.show_window(window.hwnd)
 
-        print("debug: switch_to_nth_vd: " + str(dstIdx)
+        print("debug: switch_to_nth_ws: " + str(dstIdx)
                                     + ":" + str(self.workspace_idx))
         self.arrange_windows()
 
-    def send_to_nth_vd(self, dstIdx):
+    def send_to_nth_ws(self, dstIdx):
         if self.workspace_idx == dstIdx:
             return
         workspace = self.workspaces[self.workspace_idx]
@@ -305,7 +305,7 @@ class WindowManager():
             self.workspaces[dstIdx][:0] = [workspace[target_window]]
             self.hide_window(workspace[target_window].hwnd)
             workspace.pop(target_window)
-            print("debug: send_to_nth_vd: " + str(dstIdx))
+            print("debug: send_to_nth_ws: " + str(dstIdx))
             self.arrange_windows()
 
     def swap_master(self):
@@ -417,13 +417,13 @@ if __name__ == '__main__':
             elif isKeyDown(ord('C')):
                 manager.close_window()
             elif isKeyDown(ord('A')):
-                manager.send_to_nth_vd(1)
+                manager.send_to_nth_ws(1)
             elif isKeyDown(ord('S')):
-                manager.send_to_nth_vd(0)
+                manager.send_to_nth_ws(0)
             elif isKeyDown(ord('Z')):
-                manager.switch_to_nth_vd(1)
+                manager.switch_to_nth_ws(1)
             elif isKeyDown(ord('X')):
-                manager.switch_to_nth_vd(0)
+                manager.switch_to_nth_ws(0)
             elif isKeyDown(0xBC):       # comma
                 manager.inc_master_n(+1)
             elif isKeyDown(0xBE):       # period
