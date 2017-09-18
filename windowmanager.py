@@ -15,12 +15,12 @@ from ctypes import wintypes
 import wmi
 
 class WindowInfo():
-    def __init__(self, hwnd=-1, class_name="", title="", pid=-1, process_name=""):
+    def __init__(self, hwnd=-1, class_name="", title="", pid=-1, proc_name=""):
         self.hwnd = hwnd
         self.class_name = class_name
         self.title = title
         self.pid = pid
-        self.process_name = process_name
+        self.proc_name = proc_name
 
     def __eq__(self, other):
         if isinstance(other, WindowInfo):
@@ -34,12 +34,17 @@ class WindowInfo():
         return not self.__eq__(other)
 
     def __str__(self):
-        return "hwnd: {}, class: {}\ntitle: {}, pid: {}\nprocess name: {}".format(self.hwnd,
-                self.class_name, self.title, self.pid, self.process_name)
+        return "hwnd: {}, class: {}\ntitle: {}, pid: {}\nproc: {}".format(
+                self.hwnd,
+                self.class_name,
+                self.title,
+                self.pid,
+                self.proc_name
+                )
 
 
 class WindowManager():
-    def __init__(self, title="WindowManager", max_main=1, num_virtual_desktops=2,
+    def __init__(self, title="WindowManager", master_n=1, workspace_n=2,
                     ignore_list=[]):
         # logger.debug('new manager is created')
         print('debug: new manager is created')
@@ -54,29 +59,34 @@ class WindowManager():
         m_left, m_top, m_right, m_bottom = first_mon['Monitor']
         w_left, w_top, w_right, w_bottom = first_mon['Work']
 
-        self.monitor_width = m_right - m_left
-        self.monitor_height = m_bottom - m_top
-        self.work_width = w_right - w_left
-        self.work_height = w_bottom - w_top
-        self.taskbar_height = self.monitor_height - self.work_height
+        self.monitor_w = m_right - m_left
+        self.monitor_h = m_bottom - m_top
+        self.work_w = w_right - w_left
+        self.work_h = w_bottom - w_top
+        self.taskbar_h = self.monitor_h - self.work_h
 
-        self.num_virtual_desktops = num_virtual_desktops
-        self.virtual_desktops = []
-        for i in range(self.num_virtual_desktops):
-            self.virtual_desktops.append(list())
-        self.cur_vd_idx = 0
+        self.workspace_n = workspace_n
+        self.workspaces = []
+        for i in range(self.workspace_n):
+            self.workspaces.append(list())
+        self.workspace_idx = 0
 
-        self.max_main = max_main
-        self.way_to_tile = 0
+        self.master_n = master_n
+        self.layout = 0
 
-        self.ignore_list = ["Windows.UI.Core.CoreWindow"] + ignore_list
+        self.ignore_list = ignore_list
 
         self.offset_from_center = 0
 
-    def _isRealWindow(self, hwnd):
+    def _is_real_window(self, hwnd):
         '''Return True iff given window is a real Windows application window.'''
         status = ctypes.wintypes.DWORD()
-        self.dwm.DwmGetWindowAttribute(ctypes.wintypes.HWND(hwnd), ctypes.wintypes.DWORD(14), ctypes.byref(status), ctypes.sizeof(status))
+        self.dwm.DwmGetWindowAttribute(
+                ctypes.wintypes.HWND(hwnd),
+                ctypes.wintypes.DWORD(14),
+                ctypes.byref(status),
+                ctypes.sizeof(status)
+                )
         if status.value != 0:
             return False
         if not win32gui.IsWindowVisible(hwnd):
@@ -91,23 +101,24 @@ class WindowManager():
                 return True
         return False
 
-    def _getWindows(self):
+    def _get_windows(self):
         def callback(hwnd, windows):
-            if not self._isRealWindow(hwnd):
+            if not self._is_real_window(hwnd):
                 return
             class_name = win32gui.GetClassName(hwnd)
             for ignore_item in self.ignore_list:
                 if class_name == ignore_item:
                     return
             _, pid = win32process.GetWindowThreadProcessId(hwnd)
-            window = WindowInfo(hwnd, class_name, win32gui.GetWindowText(hwnd), pid, self.get_process_name(pid))
+            window = WindowInfo(hwnd, class_name, win32gui.GetWindowText(hwnd),
+                                pid, self._get_proc_name(pid))
             windows.append(window)
 
         windows = []
         win32gui.EnumWindows(callback, windows)
         return windows
 
-    def get_process_name(self,pid):
+    def _get_proc_name(self,pid):
         try:
             for p in self.c.query('SELECT Name FROM Win32_Process WHERE\
                                     ProcessId = %s' % str(pid)):
@@ -115,9 +126,9 @@ class WindowManager():
         except:
             return ""
 
-    def manage_windows(self):
-        old_stack = self.virtual_desktops[self.cur_vd_idx]
-        new_stack = self._getWindows()
+    def _manage_windows(self):
+        old_stack = self.workspaces[self.workspace_idx]
+        new_stack = self._get_windows()
 
         rm_list_old = []
         rm_list_new = []
@@ -140,103 +151,104 @@ class WindowManager():
         for rm_item in rm_list_new:
             new_stack.remove(rm_item)
         # prepend new windows
-        self.virtual_desktops[self.cur_vd_idx] = new_stack + old_stack
+        self.workspaces[self.workspace_idx] = new_stack + old_stack
 
-    def move_n_resize(self):
-        self.manage_windows()
-        cur_stack = self.virtual_desktops[self.cur_vd_idx]
-        num_win = len(cur_stack)
-        if num_win is 0:
+    def arrange_windows(self):
+        self._manage_windows()
+        workspace = self.workspaces[self.workspace_idx]
+        win_n = len(workspace)
+        if win_n is 0:
             return
-        if self.way_to_tile == 0:
-            if num_win <= self.max_main:
-                win_h = math.floor((self.work_height)/num_win)
-                win_w = self.work_width
+        if self.layout == 0:
+            if win_n <= self.master_n:
+                win_h = math.floor((self.work_h)/win_n)
+                win_w = self.work_w
 
-                for i in range(num_win):
+                for i in range(win_n):
                     try:
                         win32gui.SetWindowPos(
-                                cur_stack[i].hwnd,
+                                workspace[i].hwnd,
                                 win32con.HWND_TOPMOST,
-                                0, win_h*i + self.taskbar_height, win_w, win_h,
+                                0, win_h*i + self.taskbar_h, win_w, win_h,
                                 win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                                 )
                     except Exception:
-                        print("error: SetWindowPos" + str(cur_stack[i]))
+                        print("error: SetWindowPos" + str(workspace[i]))
                         # # exit(0)
 
             else:
-                sub_win_w = math.floor(self.work_width/2) - self.offset_from_center
-                main_win_w = self.work_width - sub_win_w
-                main_win_h = math.floor((self.work_height) / (self.max_main))
-                sub_win_h = math.floor((self.work_height) / (num_win-self.max_main))
+                sub_w = math.floor(self.work_w/2) - self.offset_from_center
+                main_w = self.work_w - sub_w
+                main_h = math.floor((self.work_h) / (self.master_n))
+                sub_h = math.floor((self.work_h) /\
+                                                (win_n-self.master_n))
 
-                for i in range(self.max_main):
+                for i in range(self.master_n):
                     try:
                         win32gui.SetWindowPos(
-                                cur_stack[i].hwnd,
+                                workspace[i].hwnd,
                                 win32con.HWND_TOPMOST,
-                                0, main_win_h*i + self.taskbar_height,
-                                main_win_w, main_win_h,
+                                0, main_h*i + self.taskbar_h,
+                                main_w, main_h,
                                 win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                                 )
                     except Exception:
-                        print("error: SetWindowPos" + str(cur_stack[i]))
+                        print("error: SetWindowPos" + str(workspace[i]))
                         # exit(0)
 
-                for i in range(num_win-self.max_main):
+                for i in range(win_n-self.master_n):
                     try:
                         win32gui.SetWindowPos(
-                                cur_stack[i+self.max_main].hwnd,
+                                workspace[i+self.master_n].hwnd,
                                 win32con.HWND_TOPMOST,
-                                main_win_w, sub_win_h*i + self.taskbar_height,
-                                sub_win_w, sub_win_h,
+                                main_w, sub_h*i + self.taskbar_h,
+                                sub_w, sub_h,
                                 win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                                 )
                     except Exception:
-                        print("error: SetWindowPos" + str(cur_stack[i]))
+                        print("error: SetWindowPos" + str(workspace[i]))
                         # exit(0)
         else:
-            win_h = self.work_height
-            win_w = self.work_width
+            win_h = self.work_h
+            win_w = self.work_w
 
-            for i in range(num_win):
+            for i in range(win_n):
                 try:
                     win32gui.SetWindowPos(
-                            cur_stack[i].hwnd,
+                            workspace[i].hwnd,
                             win32con.HWND_TOPMOST,
-                            0, self.taskbar_height, win_w, win_h,
+                            0, self.taskbar_h, win_w, win_h,
                             win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                             )
                 except Exception:
-                    print ("error: SetWindowpos" + str(cur_stack[i]))
+                    print ("error: SetWindowpos" + str(workspace[i]))
 
-    def change_way_to_tile(self):
-        self.way_to_tile = (self.way_to_tile + 1) % 2
-        self.move_n_resize()
+    def next_layout(self):
+        self.layout = (self.layout + 1) % 2
+        self.arrange_windows()
 
-    def close_active_window(self):
+    def close_window(self):
         hwnd = win32gui.GetForegroundWindow()
         win32gui.PostMessage(hwnd, win32con.WM_CLOSE,0,0)
         time.sleep(0.5)
-        self.move_n_resize()
+        self.arrange_windows()
 
-    def focus_next(self, num=1):
-        cur_stack = self.virtual_desktops[self.cur_vd_idx]
+    def focus_up(self, num=1):
+        workspace = self.workspaces[self.workspace_idx]
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
-        for i, window in enumerate(cur_stack):
+        for i, window in enumerate(workspace):
             if hwnd == window:
                 print(i)
                 target_window = i
 
         if target_window != -1:
-            next_idx = (target_window + num) % len(cur_stack)
+            next_idx = (target_window + num) % len(workspace)
             try:
                 # according to https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
                 self.shell.SendKeys('%')
-                win32gui.SetForegroundWindow(cur_stack[next_idx].hwnd)
-                print("debug: focus_next: " + str(next_idx))
+                win32gui.SetForegroundWindow(workspace[next_idx].hwnd)
+                print("debug: focus_up: " + str(next_idx))
             except Exception:
                 print ("error: SetForegroundWindow" + str(next_idx))
                 # exit(0)
@@ -265,108 +277,126 @@ class WindowManager():
         except Exception:
             print("error: SetWindowPos" + str(hwnd))
 
-    def switch_to_n_th_vd(self, stack_idx):
-        if self.cur_vd_idx == stack_idx:
+    def switch_to_nth_vd(self, dstIdx):
+        if self.workspace_idx == dstIdx:
             return
-        for window in self.virtual_desktops[self.cur_vd_idx]:
+        for window in self.workspaces[self.workspace_idx]:
             self.hide_window(window.hwnd)
 
-        self.cur_vd_idx = stack_idx
-        for window in self.virtual_desktops[self.cur_vd_idx]:
+        self.workspace_idx = dstIdx
+        for window in self.workspaces[self.workspace_idx]:
             self.show_window(window.hwnd)
 
-        print("debug: switch_to_n_th_vd: " + str(stack_idx)
-                                    + ":" + str(self.cur_vd_idx))
-        self.move_n_resize()
+        print("debug: switch_to_nth_vd: " + str(dstIdx)
+                                    + ":" + str(self.workspace_idx))
+        self.arrange_windows()
 
-    def send_active_window_to_n_th_vd(self, stack_idx):
-        if self.cur_vd_idx == stack_idx:
+    def send_to_nth_vd(self, dstIdx):
+        if self.workspace_idx == dstIdx:
             return
-        cur_stack = self.virtual_desktops[self.cur_vd_idx]
+        workspace = self.workspaces[self.workspace_idx]
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
-        for i, window in enumerate(cur_stack):
+        for i, window in enumerate(workspace):
             if hwnd == window:
                 target_window = i
 
         if target_window != -1:
-            self.virtual_desktops[stack_idx].append(cur_stack[target_window])
-            self.hide_window(cur_stack[target_window].hwnd)
-            cur_stack.pop(target_window)
-            print("debug: send_to_n_th_vd: " + str(stack_idx))
-            self.move_n_resize()
+            self.workspaces[dstIdx][:0] = [workspace[target_window]]
+            self.hide_window(workspace[target_window].hwnd)
+            workspace.pop(target_window)
+            print("debug: send_to_nth_vd: " + str(dstIdx))
+            self.arrange_windows()
 
-    def move_active_to_first_in_stack(self):
+    def swap_master(self):
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
-        for i, window in enumerate(self.virtual_desktops[self.cur_vd_idx]):
+        for i, window in enumerate(self.workspaces[self.workspace_idx]):
             if hwnd == window:
                 target_window = i
         if target_window != -1:
-            window = self.virtual_desktops[self.cur_vd_idx].pop(target_window)
-            self.virtual_desktops[self.cur_vd_idx][:0] = [window]
-            self.move_n_resize()
+            window = self.workspaces[self.workspace_idx].pop(target_window)
+            self.workspaces[self.workspace_idx][:0] = [window]
+            self.arrange_windows()
 
-    def shuffle_windows(self, num=1):
-        cur_stack = self.virtual_desktops[self.cur_vd_idx]
+    def swap_windows(self, num=1):
+        workspace = self.workspaces[self.workspace_idx]
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
-        for i, window in enumerate(cur_stack):
+        for i, window in enumerate(workspace):
             if hwnd == window:
                 print(i)
                 target_window = i
 
         if target_window != -1:
-            next_idx = (target_window + num) % len(cur_stack)
-            window = cur_stack.pop(target_window)
-            cur_stack[next_idx:next_idx] = [window]
-            self.move_n_resize()
+            next_idx = (target_window + num) % len(workspace)
+            window = workspace.pop(target_window)
+            workspace[next_idx:next_idx] = [window]
+            self.arrange_windows()
 
-    def change_max_main(self, num=1):
-        self.max_main += num
-        if self.max_main <= 0:
-            self.max_main = 1
-        print("debug: change_max_main: " + str(num))
-        self.move_n_resize()
+    def inc_master_n(self, num=1):
+        self.master_n += num
+        if self.master_n <= 0:
+            self.master_n = 1
+        print("debug: inc_master_n: " + str(num))
+        self.arrange_windows()
 
-    def move_center_line(self, num=10):
+    def expand_master(self, num=10):
         self.offset_from_center += num
-        self.move_n_resize()
+        self.arrange_windows()
 
     def recover_windows(self):
-        for i, stack in enumerate(self.virtual_desktops):
-            if i == self.cur_vd_idx:
-                continue
-            else:
-                for window in stack:
+        for i, stack in enumerate(self.workspaces):
+            for window in stack:
+                self.show_caption(window.hwnd)
+                if i != self.workspace_idx:
                     self.show_window(window.hwnd)
-        self.move_n_resize()
+        self.arrange_windows()
 
-    def show_window_information(self):
+    def show_window_info(self):
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
-        for i, window in enumerate(self.virtual_desktops[self.cur_vd_idx]):
+        for i, window in enumerate(self.workspaces[self.workspace_idx]):
             if hwnd == window:
                 target_window = i
         if target_window != -1:
-            window = self.virtual_desktops[self.cur_vd_idx][target_window]
+            window = self.workspaces[self.workspace_idx][target_window]
             print(window)
-            # win32gui.MessageBox(None, str(window), "window information", win32con.MB_ICONEXCLAMATION | win32con.MB_OK)
+            # ret = win32gui.MessageBox(None, str(window), "window information", win32con.MB_YESNO)
+
+    def show_caption(self, hwnd=-1):
+        if hwnd == -1:
+            hwnd = win32gui.GetForegroundWindow()
+        style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
+        if not style & win32con.WS_CAPTION:
+            style += win32con.WS_CAPTION
+        win32gui.SetWindowLong(hwnd, win32con.GWL_STYLE, style)
+        win32gui.SetWindowPos(
+                hwnd,
+                0, 0, 0, 0, 0,
+                win32con.SWP_FRAMECHANGED |
+                win32con.SWP_NOMOVE |
+                win32con.SWP_NOSIZE |
+                win32con.SWP_NOZORDER
+                )
+
+    def toggle_caption(self, hwnd=-1):
+        if hwnd == -1:
+            hwnd = win32gui.GetForegroundWindow()
+        style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
+        if style & win32con.WS_CAPTION:
+            style -= win32con.WS_CAPTION
         else:
-            print(target_window)
-
-
-def isKeyDown(key, isAsync=True):
-    state = 0
-    if isAsync:
-        state = win32api.GetAsyncKeyState(key)
-    else:
-        state = win32api.GetKeyState(key)
-
-    if state != 0 and state != 0:
-        return True
-    else:
-        return False
+            style += win32con.WS_CAPTION
+        win32gui.SetWindowLong(hwnd, win32con.GWL_STYLE, style)
+        win32gui.SetWindowPos(
+                hwnd,
+                0, 0, 0, 0, 0,
+                win32con.SWP_FRAMECHANGED |
+                win32con.SWP_NOMOVE |
+                win32con.SWP_NOSIZE |
+                win32con.SWP_NOZORDER
+                )
 
 
 if __name__ == '__main__':
@@ -374,7 +404,7 @@ if __name__ == '__main__':
     manager = WindowManager(ignore_list=['TaskManagerWindow'])
 
     while True:
-        manager.move_n_resize()
+        manager.arrange_windows()
         ##########
         # CONFIG #
         ##########
@@ -383,23 +413,23 @@ if __name__ == '__main__':
                 manager.recover_windows()
                 break
             elif isKeyDown(win32con.VK_TAB):
-                manager.focus_next()
+                manager.focus_up()
             elif isKeyDown(ord('C')):
-                manager.close_active_window()
+                manager.close_window()
             elif isKeyDown(ord('A')):
-                manager.send_active_window_to_n_th_vd(1)
+                manager.send_to_nth_vd(1)
             elif isKeyDown(ord('S')):
-                manager.send_active_window_to_n_th_vd(0)
+                manager.send_to_nth_vd(0)
             elif isKeyDown(ord('Z')):
-                manager.switch_to_n_th_vd(1)
+                manager.switch_to_nth_vd(1)
             elif isKeyDown(ord('X')):
-                manager.switch_to_n_th_vd(0)
+                manager.switch_to_nth_vd(0)
             elif isKeyDown(0xBC):       # comma
-                manager.change_max_main(+1)
+                manager.inc_master_n(+1)
             elif isKeyDown(0xBE):       # period
-                manager.change_max_main(-1)
+                manager.inc_master_n(-1)
             elif isKeyDown(win32con.VK_RETURN):
-                manager.move_active_to_first_in_stack()
+                manager.swap_master()
             else:
                 continue
         time.sleep(0.2)
