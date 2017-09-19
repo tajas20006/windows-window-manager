@@ -1,3 +1,5 @@
+# based on https://stackoverflow.com/questions/40614509/cant-update-text-in-window-with-win32gui-drawtext
+
 import win32api
 import win32con
 import win32gui
@@ -14,6 +16,18 @@ import ctypes
 class TextOnTray():
     def __init__(self,windowText="hello"):
         self.windowText = windowText
+        lf = win32gui.LOGFONT()
+        # ref. http://chokuto.ifdef.jp/urawaza/struct/LOGFONT.html
+        # lf.lfFaceName = ""
+        lf.lfCharSet = win32con.SHIFTJIS_CHARSET     # shift jis
+        lf.lfOutPrecision = 4    # true type
+        lf.lfPitchAndFamily = 1
+        lf.lfHeight = 15
+        lf.lfWeight = 900
+        # # # Use nonantialiased to remove the white edges around the text.
+        lf.lfQuality = win32con.NONANTIALIASED_QUALITY
+        # lf = win32gui.GetObject(win32gui.GetStockObject(17))
+        self.hf = win32gui.CreateFontIndirect(lf)
 
     def create_text_box(self):
         hInstance = win32api.GetModuleHandle()
@@ -42,8 +56,9 @@ class TextOnTray():
         style = win32con.WS_DISABLED | win32con.WS_POPUP | win32con.WS_VISIBLE
 
         tray = win32gui.FindWindow('Shell_TrayWnd', None)
-        left, top, right, bottom = win32gui.GetWindowRect(tray)
+        self.rect  = win32gui.GetWindowRect(tray)
 
+        left, top, right, bottom = self.rect
         # http://msdn.microsoft.com/en-us/library/windows/desktop/ms632680(v=vs.85).aspx
         self.hwnd = win32gui.CreateWindowEx(
             exStyle,
@@ -86,7 +101,6 @@ class TextOnTray():
 
 # New code: Attempt to change the text 1 second later
     def customDraw(self, new_text="new_text"):
-        time.sleep(1.0)
         self.windowText = new_text
         win32gui.RedrawWindow(self.hwnd, None, None, win32con.RDW_INVALIDATE | win32con.RDW_ERASE)
 
@@ -102,18 +116,19 @@ class TextOnTray():
         if message == win32con.WM_PAINT:
             hDC, paintStruct = win32gui.BeginPaint(hWnd)
 
-            dpiScale = win32ui.GetDeviceCaps(hDC, win32con.LOGPIXELSX) / 60.0
-            fontSize = 10
+            # dpiScale = win32ui.GetDeviceCaps(hDC, win32con.LOGPIXELSX) / 60.0
+            # fontSize = 10
 
             # http://msdn.microsoft.com/en-us/library/windows/desktop/dd145037(v=vs.85).aspx
-            lf = win32gui.LOGFONT()
-            lf.lfFaceName = "Ricty Diminished"
-            lf.lfHeight = int(round(dpiScale * fontSize))
-            #lf.lfWeight = 150
-            # Use nonantialiased to remove the white edges around the text.
-            lf.lfQuality = win32con.NONANTIALIASED_QUALITY
-            hf = win32gui.CreateFontIndirect(lf)
-            win32gui.SelectObject(hDC, hf)
+            # lf = win32gui.LOGFONT()
+            # # # lf.lfFaceName = "Ricty Diminished"
+            # # # lf.lfHeight = int(round(dpiScale * fontSize))
+            # # # #lf.lfWeight = 150
+            # # # # Use nonantialiased to remove the white edges around the text.
+            # # # lf.lfQuality = win32con.NONANTIALIASED_QUALITY
+            # lf = win32gui.GetObject(win32gui.GetStockObject(17))
+            # hf = win32gui.CreateFontIndirect(lf)
+            win32gui.SelectObject(hDC, self.hf)
             win32gui.SetBkMode(hDC, win32con.TRANSPARENT)
             win32gui.SetTextColor(hDC, win32api.RGB(255,255,0))
 
@@ -123,7 +138,7 @@ class TextOnTray():
                 self.windowText,
                 -1,
                 rect,
-                win32con.DT_SINGLELINE | win32con.DT_CENTER | win32con.DT_VCENTER)
+                win32con.DT_CENTER | win32con.DT_VCENTER)
 
             win32gui.EndPaint(hWnd, paintStruct)
             return 0
