@@ -106,16 +106,22 @@ class WindowManager():
                 return True
         return False
 
+    def _in_ignore_list(self, class_name=None, title=None):
+        if {"class_name": class_name, "title": title} in self.ignore_list:
+            return True
+        if {"class_name": class_name} in self.ignore_list:
+            return True
+
     def _get_windows(self):
         def callback(hwnd, windows):
             if not self._is_real_window(hwnd):
                 return
             class_name = win32gui.GetClassName(hwnd)
-            for ignore_item in self.ignore_list:
-                if class_name == ignore_item:
-                    return
+            title = win32gui.GetWindowText(hwnd)
+            if self._in_ignore_list(class_name, title):
+                return
             _, pid = win32process.GetWindowThreadProcessId(hwnd)
-            window = WindowInfo(hwnd, class_name, win32gui.GetWindowText(hwnd),
+            window = WindowInfo(hwnd, class_name, title,
                                 pid, self._get_proc_name(pid))
             windows.append(window)
 

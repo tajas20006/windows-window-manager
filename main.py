@@ -73,7 +73,7 @@ class EntryPoint():
 
 if __name__ == '__main__':
     manager = windowmanager.WindowManager(
-            ignore_list=["Windows.UI.Core.CoreWindow", "TaskManagerWindow"],
+            ignore_list=[{"class_name": "Windows.UI.Core.CoreWindow"}, {"class_name": "TaskManagerWindow"}, {"class_name": "Microsoft-Windows-SnipperToolbar"}, {"class_name": "Qt5QWindowIcon", "title": "GtransWeb"}],
             workspace_n=9
             )
 
