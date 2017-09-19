@@ -37,6 +37,7 @@ class EntryPoint():
                                 win32con.WM_QUIT,
                                 0, 0
                                 )
+                        manager.text.windowText = "exit"
                         self.flag = False
                     elif e.key_code == ord('J'):
                         manager.swap_windows(+1)

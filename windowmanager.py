@@ -56,7 +56,7 @@ class WindowManager():
         self.dwm = ctypes.cdll.dwmapi
         self.shell = win32com.client.Dispatch("WScript.Shell")
 
-        self.text = drawtext.TextOnTray("[0]:tile")
+        self.text = drawtext.TextOnTray("[0]:tile\ninitiating")
         self.thr = threading.Thread(target=self.text.create_text_box)
         self.thr.start()
 
@@ -236,6 +236,10 @@ class WindowManager():
                             )
                 except Exception:
                     print ("error: SetWindowpos" + str(workspace[i]))
+        if self.text.windowText != "exit":
+            left, top, right, bottom = self.text.rect
+            win32gui.SetWindowPos(self.text.hwnd, win32con.HWND_TOPMOST, left, top, right, bottom, win32con.SWP_NOMOVE)
+
 
     def next_layout(self):
         self.layout[self.workspace_idx] =\
