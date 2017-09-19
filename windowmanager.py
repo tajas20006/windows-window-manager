@@ -2,7 +2,6 @@
 # -*- coding: utf-8 -*-
 import drawtext
 
-import math
 import time
 import threading
 
@@ -188,7 +187,7 @@ class WindowManager():
             return
         if self.layout[self.workspace_idx] == 0:
             if win_n <= cur_master_n:
-                win_h = math.floor(self.work_h / win_n)
+                win_h = int(self.work_h / win_n)
                 win_w = self.work_w
 
                 for i in range(win_n):
@@ -204,10 +203,10 @@ class WindowManager():
                         # # exit(0)
 
             else:
-                sub_w = math.floor(self.work_w/2) - self.offset_from_center
+                sub_w = int(self.work_w/2) - self.offset_from_center
                 main_w = self.work_w - sub_w
-                main_h = math.floor(self.work_h / cur_master_n)
-                sub_h = math.floor(self.work_h / (win_n-cur_master_n))
+                main_h = int(self.work_h / cur_master_n)
+                sub_h = int(self.work_h / (win_n-cur_master_n))
 
                 for i in range(cur_master_n):
                     try:
