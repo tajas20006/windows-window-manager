@@ -37,11 +37,11 @@ class WindowInfo():
         return not self.__eq__(other)
 
     def __str__(self):
-        return "hwnd: {}, class: {}\ntitle: {}, pid: {}\nproc: {}".format(
+        return "hwnd: {}  class: {}  pid: {}  \ntitle: {}  proc: {}".format(
                 self.hwnd,
                 self.class_name,
-                self.title,
                 self.pid,
+                self.title if len(self.title)<=25 else self.title[:22] + "...",
                 self.proc_name
                 )
 
@@ -56,7 +56,7 @@ class WindowManager():
         self.dwm = ctypes.cdll.dwmapi
         self.shell = win32com.client.Dispatch("WScript.Shell")
 
-        self.text = drawtext.TextOnTray("[0]:tile\ninitiating")
+        self.text = drawtext.TextOnTray()
         self.thr = threading.Thread(target=self.text.create_text_box)
         self.thr.start()
 
@@ -143,6 +143,7 @@ class WindowManager():
                 if old == new:
                     # if same window is still existing
                     rm_list_new.append(new)
+                    old.title = new.title
                     still_here = True
                     continue
             if not still_here:
@@ -164,8 +165,13 @@ class WindowManager():
             layout_str = "tile"
         else:
             layout_str = "full"
-        new_text = "[{}]:{}".format(str(self.workspace_idx+1), layout_str)
-        self.text.customDraw(new_text)
+        new_top_text = ["[{}]:{}".format(str(self.workspace_idx+1), layout_str)]
+        new_top_color = [(250,250,250)]
+        self.text.customDraw(
+                new_top_text=new_top_text,
+                new_top_color=new_top_color,
+                new_btm_text=""
+                )
 
     def arrange_windows(self):
         self._manage_windows()
@@ -236,10 +242,11 @@ class WindowManager():
                             )
                 except Exception:
                     print ("error: SetWindowpos" + str(workspace[i]))
-        if self.text.windowText != "exit":
+        try:
             left, top, right, bottom = self.text.rect
             win32gui.SetWindowPos(self.text.hwnd, win32con.HWND_TOPMOST, left, top, right, bottom, win32con.SWP_NOMOVE)
-
+        except:
+            pass
 
     def next_layout(self):
         self.layout[self.workspace_idx] =\
@@ -383,12 +390,15 @@ class WindowManager():
         if target_window != -1:
             window = self.workspaces[self.workspace_idx][target_window]
             print(window)
+            self.text.customDraw(new_btm_text=str(window))
             # ret = win32gui.MessageBox(None, str(window), "window information", win32con.MB_YESNO)
         else:
             class_name = win32gui.GetClassName(hwnd)
             title = win32gui.GetWindowText(hwnd)
             _, pid = win32process.GetWindowThreadProcessId(hwnd)
-            print ("hwnd: {}, class: {},pid: {}\ntitle: {}".format(hwnd, class_name, pid, title))
+            window_str = "hwnd: {}, class: {},pid: {}\ntitle: {}".format(hwnd, class_name, pid, title)
+            print(window_str)
+            self.text.customDraw(new_btm_text=window_str)
 
 
     def show_caption(self, hwnd=-1):
