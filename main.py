@@ -37,7 +37,6 @@ class EntryPoint():
                                 win32con.WM_QUIT,
                                 0, 0
                                 )
-                        manager.text.windowText = "exit"
                         self.flag = False
                     elif e.key_code == ord('J'):
                         manager.swap_windows(+1)
@@ -69,6 +68,8 @@ class EntryPoint():
                         manager.next_layout()
                     elif e.key_code == ord('D'):
                         manager.toggle_caption()
+                    elif e.key_code == ord('A'):
+                        manager.arrange_windows()
         # print(e)
 
 if __name__ == '__main__':
@@ -85,9 +86,9 @@ if __name__ == '__main__':
     hook_thread = threading.Thread(target=handle.listen)
     hook_thread.start()
 
-    while entry.flag:
-        manager.arrange_windows()
-        time.sleep(2)
+    # while entry.flag:
+    #     manager.arrange_windows()
+    #     time.sleep(2)
 
     hook_thread.join()
     manager.thr.join()

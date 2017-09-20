@@ -82,6 +82,12 @@ class WindowManager():
 
         self.offset_from_center = 0
 
+        self.first_to_do()
+
+    def first_to_do(self):
+        self.watch_dog()
+        self.arrange_windows()
+
     def _is_real_window(self, hwnd):
         '''Return True iff given window is a real Windows application window.'''
         status = ctypes.wintypes.DWORD()
@@ -136,7 +142,7 @@ class WindowManager():
         except:
             return ""
 
-    def _manage_windows(self):
+    def watch_dog(self):
         old_stack = self.workspaces[self.workspace_idx]
         new_stack = self._get_windows()
 
@@ -164,6 +170,20 @@ class WindowManager():
         # prepend new windows
         self.workspaces[self.workspace_idx] = new_stack + old_stack
 
+        try:
+            left, top, right, bottom = self.text.rect
+            win32gui.SetWindowPos(self.text.hwnd, win32con.HWND_TOPMOST, left, top, right, bottom, win32con.SWP_NOMOVE)
+        except:
+            pass
+
+        if len(new_stack) > 0:
+            print("new!true")
+            return True
+        if len(rm_list_old) > 0:
+            print("closed!true")
+            return True
+        return False
+
     def _update_taskbar_text(self):
         layout_str = ""
         if self.layout[self.workspace_idx] == 0:
@@ -179,7 +199,6 @@ class WindowManager():
                 )
 
     def arrange_windows(self):
-        self._manage_windows()
         workspace = self.workspaces[self.workspace_idx]
         cur_master_n = self.master_n[self.workspace_idx]
         win_n = len(workspace)
@@ -247,11 +266,6 @@ class WindowManager():
                             )
                 except Exception:
                     print ("error: SetWindowpos" + str(workspace[i]))
-        try:
-            left, top, right, bottom = self.text.rect
-            win32gui.SetWindowPos(self.text.hwnd, win32con.HWND_TOPMOST, left, top, right, bottom, win32con.SWP_NOMOVE)
-        except:
-            pass
 
     def next_layout(self):
         self.layout[self.workspace_idx] =\
@@ -261,6 +275,13 @@ class WindowManager():
 
     def close_window(self):
         hwnd = win32gui.GetForegroundWindow()
+        target_window = -1
+        for i, window in enumerate(self.workspaces[self.workspace_idx]):
+            if hwnd == window:
+                print(i)
+                target_window = i
+        if target_window != -1:
+            self.workspaces[self.workspace_idx].pop(target_window)
         win32gui.PostMessage(hwnd, win32con.WM_CLOSE,0,0)
         time.sleep(0.5)
         self.arrange_windows()
