@@ -86,9 +86,10 @@ if __name__ == '__main__':
     hook_thread = threading.Thread(target=handle.listen)
     hook_thread.start()
 
-    # while entry.flag:
-    #     manager.arrange_windows()
-    #     time.sleep(2)
+    while entry.flag:
+        if manager.watch_dog():
+            manager.arrange_windows()
+        time.sleep(0.5)
 
     hook_thread.join()
     manager.thr.join()

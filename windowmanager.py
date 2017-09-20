@@ -82,6 +82,8 @@ class WindowManager():
 
         self.offset_from_center = 0
 
+        self.lock = threading.Lock()
+
         self.first_to_do()
 
     def first_to_do(self):
@@ -143,6 +145,7 @@ class WindowManager():
             return ""
 
     def watch_dog(self):
+        self.lock.acquire()
         old_stack = self.workspaces[self.workspace_idx]
         new_stack = self._get_windows()
 
@@ -169,6 +172,7 @@ class WindowManager():
             new_stack.remove(rm_item)
         # prepend new windows
         self.workspaces[self.workspace_idx] = new_stack + old_stack
+        self.lock.release()
 
         try:
             left, top, right, bottom = self.text.rect
@@ -282,6 +286,7 @@ class WindowManager():
         self._update_taskbar_text()
 
     def close_window(self):
+        self.lock.acquire()
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
         for i, window in enumerate(self.workspaces[self.workspace_idx]):
@@ -291,6 +296,7 @@ class WindowManager():
         if target_window != -1:
             self.workspaces[self.workspace_idx].pop(target_window)
         win32gui.PostMessage(hwnd, win32con.WM_CLOSE,0,0)
+        self.lock.release()
         time.sleep(0.5)
         self.arrange_windows()
 
@@ -356,6 +362,7 @@ class WindowManager():
     def send_to_nth_ws(self, dstIdx):
         if self.workspace_idx == dstIdx:
             return
+        self.lock.acquire()
         workspace = self.workspaces[self.workspace_idx]
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
@@ -367,10 +374,15 @@ class WindowManager():
             self.workspaces[dstIdx][:0] = [workspace[target_window]]
             self.hide_window(workspace[target_window].hwnd)
             workspace.pop(target_window)
+            self.lock.release()
             print("debug: send_to_nth_ws: " + str(dstIdx))
             self.arrange_windows()
+            self._update_taskbar_text()
+        else:
+            self.lock.release()
 
     def swap_master(self):
+        self.lock.acquire()
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
         for i, window in enumerate(self.workspaces[self.workspace_idx]):
@@ -379,9 +391,13 @@ class WindowManager():
         if target_window != -1:
             window = self.workspaces[self.workspace_idx].pop(target_window)
             self.workspaces[self.workspace_idx][:0] = [window]
+            self.lock.release()
             self.arrange_windows()
+        else:
+            self.lock.release()
 
     def swap_windows(self, num=1):
+        self.lock.acquire()
         workspace = self.workspaces[self.workspace_idx]
         hwnd = win32gui.GetForegroundWindow()
         target_window = -1
@@ -394,7 +410,10 @@ class WindowManager():
             next_idx = (target_window + num) % len(workspace)
             window = workspace.pop(target_window)
             workspace[next_idx:next_idx] = [window]
+            self.lock.release()
             self.arrange_windows()
+        else:
+            self.lock.release()
 
     def inc_master_n(self, num=1):
         self.master_n[self.workspace_idx] += num
