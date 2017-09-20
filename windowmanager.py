@@ -190,11 +190,19 @@ class WindowManager():
             layout_str = "tile"
         else:
             layout_str = "full"
-        new_top_text = ["[{}]:{}".format(str(self.workspace_idx+1), layout_str)]
-        new_top_color = [(250,250,250)]
+        workspace_str = ["","",""]
+        workspace_color = [(250,250,250),(250,250,0),(250,250,250)]
+        i = 0
+        for j, workspace in enumerate(self.workspaces):
+            if j == self.workspace_idx:
+                workspace_str[1] += "[{}]".format(j+1)
+                i = 2
+            elif len(workspace) > 0:
+                workspace_str[i] += " {} ".format(j+1)
+        workspace_str[2] += "{}".format(layout_str)
         self.text.customDraw(
-                new_top_text=new_top_text,
-                new_top_color=new_top_color,
+                new_top_text=workspace_str,
+                new_top_color=workspace_color,
                 new_btm_text=""
                 )
 
