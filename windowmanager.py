@@ -142,6 +142,8 @@ class WindowManager():
             title = win32gui.GetWindowText(hwnd)
             if self._in_ignore_list(class_name, title):
                 return
+            if win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE) & win32con.WS_POPUP:
+                return
             _, pid = win32process.GetWindowThreadProcessId(hwnd)
             window = WindowInfo(hwnd, class_name, title,
                                 pid, self._get_proc_name(pid))
@@ -415,6 +417,24 @@ class WindowManager():
                     )
         except Exception:
             print("error: SetWindowPos" + str(hwnd))
+
+    def go_fullscreen(self, hwnd=-1):
+        if hwnd == -1:
+            hwnd = win32gui.GetForegroundWindow()
+        style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
+        style |= win32con.WS_SYSMENU | win32con.WS_VISIBLE | win32con.WS_POPUP
+        win32gui.SetWindowLong(hwnd, win32con.GWL_STYLE, style)
+
+    def ungo_fullscreen(self, hwnd=-1):
+        if hwnd == -1:
+            hwnd = win32gui.GetForegroundWindow()
+        style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
+        if style & win32con.WS_SYSMENU:
+            style -= win32con.WS_SYSMENU
+        if style & win32con.WS_VISIBLE:
+            style -= win32con.WS_VISIBLE
+        if style & win32con.WS_POPUP:
+            style -= win32con.WS_POPUP
 
     def show_window(self, hwnd):
         try:
