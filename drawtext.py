@@ -14,13 +14,17 @@ import math
 #Hello World in Python using Win32
 
 
-class TextOnTray():
+class TextOnBar():
     def __init__(self, top_text=["hello"], top_color=[(250,250,250)],
                        btm_text=["world"], btm_color=[(250,250,250)]):
         self.top_text = top_text
         self.top_color = top_color
         self.btm_text = btm_text
         self.btm_color = btm_color
+
+        tray = win32gui.FindWindow('Shell_TrayWnd', None)
+        self.tray_rect  = win32gui.GetWindowRect(tray)
+        self.rect = (0, 0, 1800, 900)
 
         lf = win32gui.LOGFONT()
         # ref. http://chokuto.ifdef.jp/urawaza/struct/LOGFONT.html
@@ -32,9 +36,8 @@ class TextOnTray():
         self.font_width = int(self.font_height/2) + 1
         lf.lfHeight = self.font_height
         lf.lfWeight = 900
-        # # # Use nonantialiased to remove the white edges around the text.
+        # Use nonantialiased to remove the white edges around the text.
         lf.lfQuality = win32con.NONANTIALIASED_QUALITY
-        # lf = win32gui.GetObject(win32gui.GetStockObject(17))
         self.hf = win32gui.CreateFontIndirect(lf)
 
     def create_text_box(self):
@@ -57,14 +60,14 @@ class TextOnTray():
         # http://msdn.microsoft.com/en-us/library/windows/desktop/ff700543(v=vs.85).aspx
         # Consider using: WS_EX_COMPOSITED, WS_EX_LAYERED, WS_EX_NOACTIVATE, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_EX_TRANSPARENT
         # The WS_EX_TRANSPARENT flag makes events (like mouse clicks) fall through the window.
-        exStyle = win32con.WS_EX_COMPOSITED | win32con.WS_EX_LAYERED | win32con.WS_EX_NOACTIVATE | win32con.WS_EX_TOPMOST | win32con.WS_EX_TRANSPARENT
+        exStyle = win32con.WS_EX_COMPOSITED | win32con.WS_EX_LAYERED\
+                    | win32con.WS_EX_NOACTIVATE | win32con.WS_EX_TOPMOST\
+                    | win32con.WS_EX_TRANSPARENT
 
         # http://msdn.microsoft.com/en-us/library/windows/desktop/ms632600(v=vs.85).aspx
         # Consider using: WS_DISABLED, WS_POPUP, WS_VISIBLE
         style = win32con.WS_DISABLED | win32con.WS_POPUP | win32con.WS_VISIBLE
 
-        tray = win32gui.FindWindow('Shell_TrayWnd', None)
-        self.rect  = win32gui.GetWindowRect(tray)
 
         left, top, right, bottom = self.rect
         # http://msdn.microsoft.com/en-us/library/windows/desktop/ms632680(v=vs.85).aspx
@@ -74,10 +77,6 @@ class TextOnTray():
             None, # WindowName
             style,
             left, top, right, bottom,
-            # 0, # x
-            # 0, # y
-            # win32api.GetSystemMetrics(win32con.SM_CXSCREEN), # width
-            # win32api.GetSystemMetrics(win32con.SM_CYSCREEN), # height
             None, # hWndParent
             None, # hMenu
             hInstance,
@@ -85,33 +84,38 @@ class TextOnTray():
         )
 
         # http://msdn.microsoft.com/en-us/library/windows/desktop/ms633540(v=vs.85).aspx
-        win32gui.SetLayeredWindowAttributes(self.hwnd, 0x00ffffff, 255, win32con.LWA_COLORKEY | win32con.LWA_ALPHA)
+        win32gui.SetLayeredWindowAttributes(
+                self.hwnd,
+                0x00ffffff,
+                255,
+                win32con.LWA_COLORKEY | win32con.LWA_ALPHA
+                )
 
         # http://msdn.microsoft.com/en-us/library/windows/desktop/dd145167(v=vs.85).aspx
         #win32gui.UpdateWindow(hwnd)
 
         # http://msdn.microsoft.com/en-us/library/windows/desktop/ms633545(v=vs.85).aspx
-        win32gui.SetWindowPos(self.hwnd, win32con.HWND_TOPMOST, 0, 0, 0, 0,
-            win32con.SWP_NOACTIVATE | win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_SHOWWINDOW)
-
+        win32gui.SetWindowPos(
+                self.hwnd,
+                win32con.HWND_TOPMOST,
+                0, 0, 0, 0,
+                win32con.SWP_NOACTIVATE | win32con.SWP_NOMOVE
+                    | win32con.SWP_NOSIZE | win32con.SWP_SHOWWINDOW
+                )
 
         # Show & update the window
         win32gui.ShowWindow(self.hwnd, win32con.SW_SHOWNORMAL)
         win32gui.UpdateWindow(self.hwnd)
 
-        # New code: Create and start the thread
-        # thr = threading.Thread(target=self.customDraw)
-        # thr.setDaemon(False)
-        # thr.start()
-
         # Dispatch messages
         win32gui.PumpMessages()
 
-# New code: Attempt to change the text 1 second later
-    def customDraw(self, new_top_text=None, new_top_color=None,
+    def redraw(self, new_top_text=None, new_top_color=None,
                          new_btm_text=None, new_btm_color=None):
         if new_top_text is not None:
+            # if None, keep the old text
             if isinstance(new_top_text, str):
+                # if str is given, put it in a list
                 self.top_text = [new_top_text]
             else:
                 self.top_text = new_top_text
@@ -130,7 +134,12 @@ class TextOnTray():
                 self.btm_color = [new_btm_color]
             else:
                 self.btm_color = new_btm_color
-        win32gui.RedrawWindow(self.hwnd, None, None, win32con.RDW_INVALIDATE | win32con.RDW_ERASE)
+
+        win32gui.RedrawWindow(
+                self.hwnd,
+                None, None,
+                win32con.RDW_INVALIDATE | win32con.RDW_ERASE
+                )
 
     def kill_proc(self):
         ctypes.windll.user32.PostThreadMessageW(
@@ -139,14 +148,9 @@ class TextOnTray():
                 0, 0
                 )
 
-    def get_str_width(self, text_str=""):
-        return len(text_str) * self.font_height/2
-
     def wndProc(self, hWnd, message, wParam, lParam):
 
         if message == win32con.WM_PAINT:
-            # https://msdn.microsoft.com/en-us/library/windows/desktop/dd145096(v=vs.85).aspx
-            # change color
             hDC, paintStruct = win32gui.BeginPaint(hWnd)
 
             win32gui.SelectObject(hDC, self.hf)
@@ -159,7 +163,7 @@ class TextOnTray():
             for text in self.btm_text:
                 btm_text_len += len(text) * self.font_width
 
-            left, top, right, bottom = self.rect
+            left, top, right, bottom = self.tray_rect
             vcenter = int((bottom-top) / 2)
             top_bgn_pos = int((right-left - top_text_len) / 2)
             btm_bgn_pos = int((right-left - btm_text_len) / 2)
@@ -172,7 +176,8 @@ class TextOnTray():
                         text,
                         -1,
                         (top_bgn_pos, top, right, vcenter),
-                        win32con.DT_SINGLELINE | win32con.DT_LEFT | win32con.DT_VCENTER
+                        win32con.DT_SINGLELINE | win32con.DT_LEFT
+                            | win32con.DT_VCENTER
                         )
                 top_bgn_pos += len(text) * self.font_width
 
@@ -184,28 +189,11 @@ class TextOnTray():
                         text,
                         -1,
                         (btm_bgn_pos, vcenter, right, bottom),
-                        win32con.DT_SINGLELINE | win32con.DT_LEFT | win32con.DT_VCENTER
+                        win32con.DT_SINGLELINE | win32con.DT_LEFT
+                            | win32con.DT_VCENTER
                         )
                 btm_bgn_pos += len(text) * self.font_width
 
-            # win32gui.SetTextColor(hDC, win32api.RGB(255,255,0))
-            #
-            #
-            # win32gui.DrawText(
-            #     hDC,
-            #     self.textLists,
-            #     -1,
-            #     (left, top, math.floor(right/2), bottom),
-            #     win32con.DT_SINGLELINE | win32con.DT_RIGHT | win32con.DT_VCENTER)
-            #
-            # win32gui.SetTextColor(hDC, win32api.RGB(255,0,0))
-            # win32gui.DrawText(
-            #         hDC,
-            #         self.textLists,
-            #         -1,
-            #         (math.floor(right/2), top, right, bottom),
-            #         win32con.DT_SINGLELINE | win32con.DT_LEFT | win32con.DT_VCENTER)
-            #
             win32gui.EndPaint(hWnd, paintStruct)
             return 0
 
@@ -217,13 +205,14 @@ class TextOnTray():
         else:
             return win32gui.DefWindowProc(hWnd, message, wParam, lParam)
 
+
 if __name__ == '__main__':
-    draw = TextOnTray()
+    draw = TextOnBar()
 
     thr = threading.Thread(target=draw.create_text_box)
     thr.start()
     time.sleep(2)
-    draw.customDraw(
+    draw.redraw(
             new_top_text=["r","a","i","n","b","o","w"],
             new_btm_text=["white  only"],
             new_top_color=[(255,0,0),(255,127,0),(255,255,0),
@@ -231,11 +220,13 @@ if __name__ == '__main__':
             new_btm_color=[(250,250,250)]
             )
     time.sleep(2)
-    draw.customDraw("test",(23,66,200))
+    draw.redraw("test",(23,66,200))
     time.sleep(2)
-    draw.customDraw([""],None,[""],None)
+    draw.redraw([""],None,[""],None)
     time.sleep(2)
-    draw.customDraw(["e","n","d"],[(255,0,0,),(255,127,0),(255,255,0)],
-                    ["t","e","s","t"],[(0,255,0),(0,0,255),(75,0,130),(148,0,211)])
+    draw.redraw(
+            ["e","n","d"], [(255,0,0,),(255,127,0),(255,255,0)],
+            ["t","e","s","t"], [(0,255,0),(0,0,255),(75,0,130),(148,0,211)]
+            )
     time.sleep(2)
     draw.kill_proc()
