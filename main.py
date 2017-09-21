@@ -70,6 +70,10 @@ class EntryPoint():
                         manager.toggle_caption()
                     elif e.key_code == ord('A'):
                         manager.arrange_windows()
+                    elif e.key_code == ord('Q'):
+                        manager.reset_windows()
+                    elif e.key_code == ord('N'):
+                        manager.show_network_info()
         # print(e)
 
 if __name__ == '__main__':
@@ -85,10 +89,12 @@ if __name__ == '__main__':
 
     hook_thread = threading.Thread(target=handle.listen)
     hook_thread.start()
-
+    counter = 0
     while entry.flag:
         if manager.watch_dog():
             manager.arrange_windows()
+        if not manager.is_window_info_on:
+            manager.show_system_info()
         time.sleep(0.5)
 
     hook_thread.join()

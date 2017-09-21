@@ -4,6 +4,7 @@ import drawtext
 
 import time
 import threading
+from os import cpu_count
 
 import win32api
 import win32con
@@ -45,17 +46,23 @@ class WindowInfo():
                 )
 
 
+class FILETIME(ctypes.Structure):
+    _fields_ = [
+            ("dwLowDateTime", ctypes.wintypes.DWORD),
+            ("dwHighDateTime", ctypes.wintypes.DWORD)
+            ]
+
 class WindowManager():
     def __init__(self, title="WindowManager", master_n=1, workspace_n=2,
                     ignore_list=[], layout = 0):
         # logger.debug('new manager is created')
-        print('debug: new manager is created')
+        # print('debug: new manager is created')
 
         self.c = wmi.WMI()
         self.dwm = ctypes.cdll.dwmapi
         self.shell = win32com.client.Dispatch("WScript.Shell")
 
-        self.text = drawtext.TextOnTray()
+        self.text = drawtext.TextOnBar()
         self.thr = threading.Thread(target=self.text.create_text_box)
         self.thr.start()
 
@@ -72,8 +79,9 @@ class WindowManager():
         self.taskbar_h = self.monitor_h - self.work_h
 
         self.workspace_n = workspace_n
-        self.workspaces = [[] for _ in range(self.workspace_n)]
+        self.workspaces = [[]] * self.workspace_n
         self.workspace_idx = 0
+        self.lock = threading.Lock()
 
         self.master_n = [master_n] * self.workspace_n
         self.layout = [layout] * self.workspace_n
@@ -81,8 +89,14 @@ class WindowManager():
         self.ignore_list = ignore_list
 
         self.offset_from_center = 0
+        self.is_window_info_on = False
 
-        self.lock = threading.Lock()
+        self.idle_time = 0
+        self.krnl_time = 0
+        self.user_time = 0
+        self.tick_count = 0
+        self.cpu_n = cpu_count()
+        self.GetSystemTimes = ctypes.windll.kernel32.GetSystemTimes
 
         self.first_to_do()
 
@@ -144,6 +158,72 @@ class WindowManager():
         except:
             return ""
 
+    def show_system_info(self):
+        up, dn = self.get_network_info()
+        cpu = self.get_cpu_info()
+        text = "CPU: {} %, Up: {}/s, dn: {}/s".format(cpu, up, dn)
+        self.text.redraw(new_btm_text=text)
+
+    def get_network_info(self):
+        try:
+            p = self.c.query('SELECT BytesReceivedPerSec, BytesSentPerSec\
+                    FROM Win32_PerfFormattedData_Tcpip_NetworkInterface\
+                    WHERE Name Like "Dell Wireless 1820A 802.11ac"')
+            received = self._bytes_to_str(int(p[0].BytesReceivedPerSec))
+            sent = self._bytes_to_str(int(p[0].BytesSentPerSec))
+            return (received, sent)
+        except:
+            return ("0","0")
+            pass
+
+    def get_cpu_info(self):
+        new_tick_count = win32api.GetTickCount()
+        elapsed = new_tick_count - self.tick_count
+
+        new_idle_time = FILETIME()
+        new_krnl_time = FILETIME()
+        new_user_time = FILETIME()
+
+        success = self.GetSystemTimes(
+                ctypes.byref(new_idle_time),
+                ctypes.byref(new_krnl_time),
+                ctypes.byref(new_user_time)
+                )
+
+        total_idle_ticks = (new_idle_time.dwLowDateTime - self.idle_time) * 0.0001/self.cpu_n
+        ppu_idle = total_idle_ticks / elapsed * 100
+        ppu = 100 - ppu_idle
+
+        sysTime = int(ppu)
+        # sysTime = int((1 - (new_idle_time.dwLowDateTime - self.idle_time) / (new_krnl_time.dwLowDateTime - self.krnl_time + new_user_time.dwLowDateTime - self.user_time)) * 100)
+
+        self.tick_count = new_tick_count
+        self.idle_time = new_idle_time.dwLowDateTime
+        self.krnl_time = new_krnl_time.dwLowDateTime
+        self.user_time = new_user_time.dwLowDateTime
+
+        return "{:>2}".format(str(sysTime))
+
+    def _bytes_to_str(self, b):
+        unit = ""
+        if b > 1047527424:
+            b /= 1024*1024*1024
+            unit = "GB"
+        elif b > 1022976:
+            b /= 1024*1024
+            unit = "MB"
+        elif b > 999:
+            b /= 1024
+            unit = "kB"
+        else:
+            unit = " B"
+
+        if b > 99.9 or unit == " B":
+            b = str(b)[0:3]
+        else:
+            b = str(b)[0:4]
+        return "{:>4} {}".format(b, unit)
+
     def watch_dog(self):
         self.lock.acquire()
         old_stack = self.workspaces[self.workspace_idx]
@@ -176,7 +256,12 @@ class WindowManager():
 
         try:
             left, top, right, bottom = self.text.rect
-            win32gui.SetWindowPos(self.text.hwnd, win32con.HWND_TOPMOST, left, top, right, bottom, win32con.SWP_NOMOVE)
+            win32gui.SetWindowPos(
+                    self.text.hwnd,
+                    win32con.HWND_TOPMOST,
+                    left, top, right, bottom,
+                    win32con.SWP_NOMOVE
+                    )
         except:
             pass
 
@@ -204,10 +289,9 @@ class WindowManager():
             elif len(workspace) > 0:
                 workspace_str[i] += " {} ".format(j+1)
         workspace_str[2] += "{}".format(layout_str)
-        self.text.customDraw(
+        self.text.redraw(
                 new_top_text=workspace_str,
-                new_top_color=workspace_color,
-                new_btm_text=""
+                new_top_color=workspace_color
                 )
 
     def arrange_windows(self):
@@ -231,7 +315,6 @@ class WindowManager():
                                 )
                     except Exception:
                         print("error: SetWindowPos" + str(workspace[i]))
-                        # # exit(0)
 
             else:
                 sub_w = int(self.work_w/2) - self.offset_from_center
@@ -250,7 +333,6 @@ class WindowManager():
                                 )
                     except Exception:
                         print("error: SetWindowPos" + str(workspace[i]))
-                        # exit(0)
 
                 for i in range(win_n-cur_master_n):
                     try:
@@ -263,7 +345,6 @@ class WindowManager():
                                 )
                     except Exception:
                         print("error: SetWindowPos" + str(workspace[i]))
-                        # exit(0)
         else:
             win_h = self.work_h
             win_w = self.work_w
@@ -315,10 +396,9 @@ class WindowManager():
                 # according to https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
                 self.shell.SendKeys('%')
                 win32gui.SetForegroundWindow(workspace[next_idx].hwnd)
-                print("debug: focus_up: " + str(next_idx))
+                # print("debug: focus_up: " + str(next_idx))
             except Exception:
                 print ("error: SetForegroundWindow" + str(next_idx))
-                # exit(0)
 
     def hide_window(self, hwnd):
         try:
@@ -347,6 +427,7 @@ class WindowManager():
     def switch_to_nth_ws(self, dstIdx):
         if self.workspace_idx == dstIdx:
             return
+        self.lock.acquire()
         for window in self.workspaces[self.workspace_idx]:
             self.hide_window(window.hwnd)
 
@@ -354,8 +435,9 @@ class WindowManager():
         for window in self.workspaces[self.workspace_idx]:
             self.show_window(window.hwnd)
 
-        print("debug: switch_to_nth_ws: " + str(dstIdx)
-                                    + ":" + str(self.workspace_idx))
+        # print("debug: switch_to_nth_ws: " + str(dstIdx)
+                                    # + ":" + str(self.workspace_idx))
+        self.lock.release()
         self.arrange_windows()
         self._update_taskbar_text()
 
@@ -375,7 +457,7 @@ class WindowManager():
             self.hide_window(workspace[target_window].hwnd)
             workspace.pop(target_window)
             self.lock.release()
-            print("debug: send_to_nth_ws: " + str(dstIdx))
+            # print("debug: send_to_nth_ws: " + str(dstIdx))
             self.arrange_windows()
             self._update_taskbar_text()
         else:
@@ -419,7 +501,7 @@ class WindowManager():
         self.master_n[self.workspace_idx] += num
         if self.master_n[self.workspace_idx] <= 0:
             self.master_n[self.workspace_idx] = 1
-        print("debug: inc_master_n: " + str(num))
+        # print("debug: inc_master_n: " + str(num))
         self.arrange_windows()
 
     def expand_master(self, num=10):
@@ -434,25 +516,28 @@ class WindowManager():
                     self.show_window(window.hwnd)
         self.arrange_windows()
 
+    def reset_windows(self):
+        self.recover_windows()
+        self.workspaces = [[] for _ in range(self.workspace_n)]
+
     def show_window_info(self):
-        hwnd = win32gui.GetForegroundWindow()
-        target_window = -1
-        for i, window in enumerate(self.workspaces[self.workspace_idx]):
-            if hwnd == window:
-                target_window = i
-        if target_window != -1:
-            window = self.workspaces[self.workspace_idx][target_window]
-            print(window)
-            self.text.customDraw(new_btm_text=str(window))
-            # ret = win32gui.MessageBox(None, str(window), "window information", win32con.MB_YESNO)
+        if self.is_window_info_on:
+            self.text.redraw(new_btm_text="")
+            self.is_window_info_on = False
         else:
+            hwnd = win32gui.GetForegroundWindow()
             class_name = win32gui.GetClassName(hwnd)
             title = win32gui.GetWindowText(hwnd)
             _, pid = win32process.GetWindowThreadProcessId(hwnd)
-            window_str = "hwnd: {}, class: {},pid: {}\ntitle: {}".format(hwnd, class_name, pid, title)
+            window_str = "hwnd: {}, class: {}, pid: {} \ntitle: {}".format(
+                    hwnd,
+                    class_name,
+                    pid,
+                    title if len(title) <= 25 else title[:22] + "..."
+                    )
             print(window_str)
-            self.text.customDraw(new_btm_text=window_str)
-
+            self.text.redraw(new_btm_text=window_str)
+            self.is_window_info_on = True
 
     def show_caption(self, hwnd=-1):
         if hwnd == -1:
