@@ -15,12 +15,18 @@ import math
 
 
 class TextOnBar():
-    def __init__(self, top_text=["hello"], top_color=[(250,250,250)],
-                       btm_text=["world"], btm_color=[(250,250,250)]):
-        self.top_text = top_text
-        self.top_color = top_color
-        self.btm_text = btm_text
-        self.btm_color = btm_color
+    def __init__(self,
+            top_text=[""], top_color=[(250,250,250)],
+            btm_text=[""], btm_color=[(250,250,250)],
+            tol_text=[""], tol_color=[(250,250,250)],
+            btl_text=[""], btl_color=[(250,250,250)],
+            tor_text=[""], tor_color=[(250,250,250)],
+            btr_text=[""], btr_color=[(250,250,250)]
+            ):
+        self.texts = [top_text, btm_text, tol_text, btl_text,
+                            tor_text, btr_text]
+        self.colors = [top_color, btm_color, tol_color, btl_color,
+                            tor_color, btr_color]
 
         tray = win32gui.FindWindow('Shell_TrayWnd', None)
         self.tray_rect  = win32gui.GetWindowRect(tray)
@@ -110,30 +116,76 @@ class TextOnBar():
         # Dispatch messages
         win32gui.PumpMessages()
 
-    def redraw(self, new_top_text=None, new_top_color=None,
-                         new_btm_text=None, new_btm_color=None):
-        if new_top_text is not None:
+    def redraw(self,
+            top_text=None, top_color=None,
+            btm_text=None, btm_color=None,
+            tol_text=None, tol_color=None,
+            btl_text=None, btl_color=None,
+            tor_text=None, tor_color=None,
+            btr_text=None, btr_color=None
+            ):
+        if top_text is not None:
             # if None, keep the old text
-            if isinstance(new_top_text, str):
+            if isinstance(top_text, str):
                 # if str is given, put it in a list
-                self.top_text = [new_top_text]
+                self.texts[0] = [top_text]
             else:
-                self.top_text = new_top_text
-        if new_top_color is not None:
-            if isinstance(new_top_color, tuple):
-                self.top_color = [new_top_color]
+                self.texts[0] = top_text
+        if top_color is not None:
+            if isinstance(top_color, tuple):
+                self.colors[0] = [top_color]
             else:
-                self.top_color = new_top_color
-        if new_btm_text is not None:
-            if isinstance(new_btm_text, str):
-                self.btm_text = [new_btm_text]
+                self.colors[0] = top_color
+        if btm_text is not None:
+            if isinstance(btm_text, str):
+                self.texts[1] = [btm_text]
             else:
-                self.btm_text = new_btm_text
-        if new_btm_color is not None:
-            if isinstance(new_btm_color, tuple):
-                self.btm_color = [new_btm_color]
+                self.texts[1] = btm_text
+        if btm_color is not None:
+            if isinstance(btm_color, tuple):
+                self.colors[1] = [btm_color]
             else:
-                self.btm_color = new_btm_color
+                self.colors[1] = btm_color
+        if tol_text is not None:
+            if isinstance(tol_text, str):
+                self.texts[2] = [tol_text]
+            else:
+                self.texts[2] = tol_text
+        if tol_color is not None:
+            if isinstance(tol_color, tuple):
+                self.colors[2] = [tol_color]
+            else:
+                self.colors[2] = tol_color
+        if btl_text is not None:
+            if isinstance(btl_text, str):
+                self.texts[3] = [btl_text]
+            else:
+                self.texts[3] = btl_text
+        if btl_color is not None:
+            if isinstance(btl_color, tuple):
+                self.colors[3] = [btl_color]
+            else:
+                self.colors[3] = btl_color
+        if tor_text is not None:
+            if isinstance(tor_text, str):
+                self.texts[4] = [tor_text]
+            else:
+                self.texts[4] = tor_text
+        if tor_color is not None:
+            if isinstance(tor_color, tuple):
+                self.colors[4] = [tor_color]
+            else:
+                self.colors[4] = tor_color
+        if btr_text is not None:
+            if isinstance(btr_text, str):
+                self.texts[5] = [btr_text]
+            else:
+                self.texts[5] = btr_text
+        if btr_color is not None:
+            if isinstance(btr_color, tuple):
+                self.colors[5] = [btr_color]
+            else:
+                self.colors[5] = btr_color
 
         win32gui.RedrawWindow(
                 self.hwnd,
@@ -156,43 +208,39 @@ class TextOnBar():
             win32gui.SelectObject(hDC, self.hf)
             win32gui.SetBkMode(hDC, win32con.TRANSPARENT)
 
-            top_text_len = 0
-            btm_text_len = 0
-            for text in self.top_text:
-                top_text_len += len(text) * self.font_width
-            for text in self.btm_text:
-                btm_text_len += len(text) * self.font_width
+            text_len = [0] * 6
+            for i, text in enumerate(self.texts):
+                for t in text:
+                    text_len[i] += len(t) * self.font_width
 
             left, top, right, bottom = self.tray_rect
             vcenter = int((bottom-top) / 2)
-            top_bgn_pos = int((right-left - top_text_len) / 2)
-            btm_bgn_pos = int((right-left - btm_text_len) / 2)
+            bgn_pos = [
+                    int((right-left - text_len[0]) / 2),
+                    int((right-left - text_len[1]) / 2),
+                    left + 400,
+                    left + 400,
+                    right - 400 - text_len[4],
+                    right - 400 - text_len[5]
+                    ]
 
-            for (text, color) in zip(self.top_text, self.top_color):
-                r,g,b = color
-                win32gui.SetTextColor(hDC, win32api.RGB(r,g,b))
-                win32gui.DrawText(
-                        hDC,
-                        text,
-                        -1,
-                        (top_bgn_pos, top, right, vcenter),
-                        win32con.DT_SINGLELINE | win32con.DT_LEFT
-                            | win32con.DT_VCENTER
-                        )
-                top_bgn_pos += len(text) * self.font_width
+            print(self.texts)
+            print(self.colors)
 
-            for (text, color) in zip(self.btm_text, self.btm_color):
-                r,g,b = color
-                win32gui.SetTextColor(hDC, win32api.RGB(r,g,b))
-                win32gui.DrawText(
-                        hDC,
-                        text,
-                        -1,
-                        (btm_bgn_pos, vcenter, right, bottom),
-                        win32con.DT_SINGLELINE | win32con.DT_LEFT
-                            | win32con.DT_VCENTER
-                        )
-                btm_bgn_pos += len(text) * self.font_width
+            for i, (t, c) in enumerate(zip(self.texts, self.colors)):
+                for text, color in zip(t, c):
+                    r,g,b = color
+                    win32gui.SetTextColor(hDC, win32api.RGB(r,g,b))
+                    win32gui.DrawText(
+                            hDC,
+                            text,
+                            -1,
+                            (bgn_pos[i], top + vcenter*(i%2),
+                                right, vcenter + vcenter*(i%2)),
+                            win32con.DT_SINGLELINE | win32con.DT_LEFT
+                                | win32con.DT_VCENTER
+                            )
+                    bgn_pos[i] += len(text) * self.font_width
 
             win32gui.EndPaint(hWnd, paintStruct)
             return 0
@@ -207,17 +255,23 @@ class TextOnBar():
 
 
 if __name__ == '__main__':
-    draw = TextOnBar()
-
+    draw = TextOnBar(
+            top_text=["hello"], top_color=[(250,250,250)],
+            btm_text=["world"], btm_color=[(250,250,250)],
+            tol_text=["good"], tol_color=[(250,0,250)],
+            btl_text=["mornig"], btl_color=[(0,250,250)],
+            tor_text=["see you"], tor_color=[(0,0,250)],
+            btr_text=["again"], btr_color=[(0,250,0)]
+            )
     thr = threading.Thread(target=draw.create_text_box)
     thr.start()
     time.sleep(2)
     draw.redraw(
-            new_top_text=["r","a","i","n","b","o","w"],
-            new_btm_text=["white  only"],
-            new_top_color=[(255,0,0),(255,127,0),(255,255,0),
+            top_text=["r","a","i","n","b","o","w"],
+            btm_text=["white  only"],
+            top_color=[(255,0,0),(255,127,0),(255,255,0),
                             (0,255,0),(0,0,255),(75,0,130),(148,0,211)],
-            new_btm_color=[(250,250,250)]
+            btm_color=[(250,250,250)]
             )
     time.sleep(2)
     draw.redraw("test",(23,66,200))

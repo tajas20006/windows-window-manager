@@ -79,7 +79,8 @@ class EntryPoint():
 if __name__ == '__main__':
     manager = windowmanager.WindowManager(
             ignore_list=[{"class_name": "Windows.UI.Core.CoreWindow"}, {"class_name": "TaskManagerWindow"}, {"class_name": "Microsoft-Windows-SnipperToolbar"}, {"class_name": "Qt5QWindowIcon", "title": "GtransWeb"}],
-            workspace_n=9
+            workspace_n=9,
+            network_interface="Dell Wireless 1820A 802.11ac"
             )
 
     mod_key = keyhandler.NOCONVERT
@@ -93,8 +94,7 @@ if __name__ == '__main__':
     while entry.flag:
         if manager.watch_dog():
             manager.arrange_windows()
-        if not manager.is_window_info_on:
-            manager.show_system_info()
+        manager.show_system_info()
         time.sleep(0.5)
 
     hook_thread.join()

@@ -54,7 +54,7 @@ class FILETIME(ctypes.Structure):
 
 class WindowManager():
     def __init__(self, title="WindowManager", master_n=1, workspace_n=2,
-                    ignore_list=[], layout = 0):
+                    ignore_list=[], layout = 0, network_interface=""):
         # logger.debug('new manager is created')
         # print('debug: new manager is created')
 
@@ -91,6 +91,7 @@ class WindowManager():
         self.offset_from_center = 0
         self.is_window_info_on = False
 
+        self.network_interface = network_interface
         self.idle_time = 0
         self.krnl_time = 0
         self.user_time = 0
@@ -161,20 +162,43 @@ class WindowManager():
     def show_system_info(self):
         up, dn = self.get_network_info()
         cpu = self.get_cpu_info()
-        text = "CPU: {} %, Up: {}/s, dn: {}/s".format(cpu, up, dn)
-        self.text.redraw(new_btm_text=text)
+        text = "CPU: {}%, Up: {}/s, dn: {}/s".format(cpu, up, dn)
+        try:
+            self.text.redraw(tol_text=text, tol_color=(250,250,250))
+        except:
+            pass
 
     def get_network_info(self):
         try:
             p = self.c.query('SELECT BytesReceivedPerSec, BytesSentPerSec\
                     FROM Win32_PerfFormattedData_Tcpip_NetworkInterface\
-                    WHERE Name Like "Dell Wireless 1820A 802.11ac"')
+                    WHERE Name Like "{}"'.format(self.network_interface))
             received = self._bytes_to_str(int(p[0].BytesReceivedPerSec))
             sent = self._bytes_to_str(int(p[0].BytesSentPerSec))
             return (received, sent)
         except:
-            return ("0","0")
+            return (" EEE"," EEE")
             pass
+
+    def _bytes_to_str(self, b):
+        unit = ""
+        if b > 1047527424:
+            b /= 1024*1024*1024
+            unit = "GB"
+        elif b > 1022976:
+            b /= 1024*1024
+            unit = "MB"
+        elif b > 999:
+            b /= 1024
+            unit = "kB"
+        else:
+            unit = " B"
+
+        if b > 99.9 or unit == " B":
+            b = str(b)[0:3]
+        else:
+            b = str(b)[0:4]
+        return "{:>4}{}".format(b, unit)
 
     def get_cpu_info(self):
         new_tick_count = win32api.GetTickCount()
@@ -202,27 +226,7 @@ class WindowManager():
         self.krnl_time = new_krnl_time.dwLowDateTime
         self.user_time = new_user_time.dwLowDateTime
 
-        return "{:>2}".format(str(sysTime))
-
-    def _bytes_to_str(self, b):
-        unit = ""
-        if b > 1047527424:
-            b /= 1024*1024*1024
-            unit = "GB"
-        elif b > 1022976:
-            b /= 1024*1024
-            unit = "MB"
-        elif b > 999:
-            b /= 1024
-            unit = "kB"
-        else:
-            unit = " B"
-
-        if b > 99.9 or unit == " B":
-            b = str(b)[0:3]
-        else:
-            b = str(b)[0:4]
-        return "{:>4} {}".format(b, unit)
+        return "{:>2}".format(str(sysTime)) if sysTime < 100 else "EE"
 
     def watch_dog(self):
         self.lock.acquire()
@@ -290,8 +294,8 @@ class WindowManager():
                 workspace_str[i] += " {} ".format(j+1)
         workspace_str[2] += "{}".format(layout_str)
         self.text.redraw(
-                new_top_text=workspace_str,
-                new_top_color=workspace_color
+                tor_text=workspace_str,
+                tor_color=workspace_color
                 )
 
     def arrange_windows(self):
@@ -522,7 +526,7 @@ class WindowManager():
 
     def show_window_info(self):
         if self.is_window_info_on:
-            self.text.redraw(new_btm_text="")
+            self.text.redraw(btm_text="")
             self.is_window_info_on = False
         else:
             hwnd = win32gui.GetForegroundWindow()
@@ -536,7 +540,7 @@ class WindowManager():
                     title if len(title) <= 25 else title[:22] + "..."
                     )
             print(window_str)
-            self.text.redraw(new_btm_text=window_str)
+            self.text.redraw(btm_text=window_str)
             self.is_window_info_on = True
 
     def show_caption(self, hwnd=-1):
