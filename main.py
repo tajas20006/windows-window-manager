@@ -46,13 +46,13 @@ class EntryPoint():
                     for i in range(manager.workspace_n):
                         if e.key_code == ord(str(i+1)):
                             manager.switch_to_nth_ws(i)
-                    if e.key_code == 0x0D:    #enter
+                    if e.key_code == 0x0D:    # enter
                         manager.swap_master()
-                    elif e.key_code == 0xBC:    #comma
+                    elif e.key_code == 0xBC:    # comma
                         manager.inc_master_n(+1)
-                    elif e.key_code == 0xBE:    #period
+                    elif e.key_code == 0xBE:    # period
                         manager.inc_master_n(-1)
-                    elif e.key_code == 0x09:    #tab
+                    elif e.key_code == 0x09:    # tab
                         manager.focus_up(+1)
                     elif e.key_code == ord('J'):
                         manager.focus_up(+1)
@@ -64,7 +64,7 @@ class EntryPoint():
                         manager.expand_master(-20)
                     elif e.key_code == ord('L'):
                         manager.expand_master(+20)
-                    elif e.key_code == 0x20:    #space
+                    elif e.key_code == 0x20:    # space
                         manager.next_layout()
                     elif e.key_code == ord('D'):
                         manager.toggle_caption()
@@ -72,13 +72,15 @@ class EntryPoint():
                         manager.arrange_windows()
                     elif e.key_code == ord('Q'):
                         manager.reset_windows()
-                    elif e.key_code == ord('N'):
-                        manager.show_network_info()
-        # print(e)
 
 if __name__ == '__main__':
     manager = windowmanager.WindowManager(
-            ignore_list=[{"class_name": "Windows.UI.Core.CoreWindow"}, {"class_name": "TaskManagerWindow"}, {"class_name": "Microsoft-Windows-SnipperToolbar"}, {"class_name": "Qt5QWindowIcon", "title": "GtransWeb"}],
+            ignore_list=[
+                {"class_name": "Windows.UI.Core.CoreWindow"},
+                {"class_name": "TaskManagerWindow"},
+                {"class_name": "Microsoft-Windows-SnipperToolbar"},
+                {"class_name": "Qt5QWindowIcon", "title": "GtransWeb"}
+                ],
             workspace_n=9,
             network_interface="Dell Wireless 1820A 802.11ac"
             )

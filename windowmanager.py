@@ -17,6 +17,7 @@ from ctypes import wintypes
 
 import wmi
 
+
 class WindowInfo():
     def __init__(self, hwnd=-1, class_name="", title="", pid=-1, proc_name=""):
         self.hwnd = hwnd
@@ -37,11 +38,17 @@ class WindowInfo():
         return not self.__eq__(other)
 
     def __str__(self):
+        short_title = ""
+        if len(self.title) <= 25:
+            short_title = self.title
+        else:
+            short_title = self.title[:22] + "..."
+
         return "hwnd: {}  class: {}  pid: {}  \ntitle: {}  proc: {}".format(
                 self.hwnd,
                 self.class_name,
                 self.pid,
-                self.title if len(self.title)<=25 else self.title[:22] + "...",
+                short_title,
                 self.proc_name
                 )
 
@@ -52,9 +59,16 @@ class FILETIME(ctypes.Structure):
             ("dwHighDateTime", ctypes.wintypes.DWORD)
             ]
 
+
 class WindowManager():
-    def __init__(self, title="WindowManager", master_n=1, workspace_n=2,
-                    ignore_list=[], layout = 0, network_interface=""):
+    def __init__(
+            self,
+            title="WindowManager",
+            master_n=1, workspace_n=2,
+            ignore_list=[],
+            layout=0,
+            network_interface=""
+            ):
         # logger.debug('new manager is created')
         # print('debug: new manager is created')
 
@@ -67,7 +81,7 @@ class WindowManager():
         self.thr.start()
 
         monitors = win32api.EnumDisplayMonitors(None, None)
-        (h_first_mon, _, (_,_,_,_)) = monitors[0]
+        (h_first_mon, _, (_, _, _, _)) = monitors[0]
         first_mon = win32api.GetMonitorInfo(h_first_mon)
         m_left, m_top, m_right, m_bottom = first_mon['Monitor']
         w_left, w_top, w_right, w_bottom = first_mon['Work']
@@ -106,7 +120,7 @@ class WindowManager():
         self.arrange_windows()
 
     def _is_real_window(self, hwnd):
-        '''Return True iff given window is a real Windows application window.'''
+        '''Return True iff given window is a real window.'''
         status = ctypes.wintypes.DWORD()
         self.dwm.DwmGetWindowAttribute(
                 ctypes.wintypes.HWND(hwnd),
@@ -122,8 +136,9 @@ class WindowManager():
             return False
         hasNoOwner = win32gui.GetWindow(hwnd, win32con.GW_OWNER) == 0
         lExStyle = win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE)
-        if (((lExStyle & win32con.WS_EX_TOOLWINDOW) == 0 and hasNoOwner)
-            or ((lExStyle & win32con.WS_EX_APPWINDOW != 0) and not hasNoOwner)):
+        if (((lExStyle & win32con.WS_EX_TOOLWINDOW) == 0 and hasNoOwner) or
+                ((lExStyle & win32con.WS_EX_APPWINDOW != 0) and not
+                    hasNoOwner)):
             if win32gui.GetWindowText(hwnd):
                 return True
         return False
@@ -142,7 +157,8 @@ class WindowManager():
             title = win32gui.GetWindowText(hwnd)
             if self._in_ignore_list(class_name, title):
                 return
-            if win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE) & win32con.WS_POPUP:
+            if win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)\
+                    & win32con.WS_POPUP:
                 return
             _, pid = win32process.GetWindowThreadProcessId(hwnd)
             window = WindowInfo(hwnd, class_name, title,
@@ -153,7 +169,7 @@ class WindowManager():
         win32gui.EnumWindows(callback, windows)
         return windows
 
-    def _get_proc_name(self,pid):
+    def _get_proc_name(self, pid):
         try:
             for p in self.c.query('SELECT Name FROM Win32_Process WHERE\
                                     ProcessId = %s' % str(pid)):
@@ -166,7 +182,7 @@ class WindowManager():
         cpu = self.get_cpu_info()
         text = "CPU: {}%, Up: {}/s, dn: {}/s".format(cpu, up, dn)
         try:
-            self.text.redraw(tol_text=text, tol_color=(250,250,250))
+            self.text.redraw(tol_text=text, tol_color=(250, 250, 250))
         except:
             pass
 
@@ -179,7 +195,7 @@ class WindowManager():
             sent = self._bytes_to_str(int(p[0].BytesSentPerSec))
             return (received, sent)
         except:
-            return (" EEE"," EEE")
+            return (" EEE", " EEE")
             pass
 
     def _bytes_to_str(self, b):
@@ -216,12 +232,15 @@ class WindowManager():
                 ctypes.byref(new_user_time)
                 )
 
-        total_idle_ticks = (new_idle_time.dwLowDateTime - self.idle_time) * 0.0001/self.cpu_n
+        total_idle_ticks = (new_idle_time.dwLowDateTime - self.idle_time)\
+            * 0.0001/self.cpu_n
         ppu_idle = total_idle_ticks / elapsed * 100
         ppu = 100 - ppu_idle
 
         sysTime = int(ppu)
-        # sysTime = int((1 - (new_idle_time.dwLowDateTime - self.idle_time) / (new_krnl_time.dwLowDateTime - self.krnl_time + new_user_time.dwLowDateTime - self.user_time)) * 100)
+        # sysTime = int((1 - (new_idle_time.dwLowDateTime - self.idle_time) /
+        #             (new_krnl_time.dwLowDateTime - self.krnl_time +
+        #                 new_user_time.dwLowDateTime - self.user_time)) * 100)
 
         self.tick_count = new_tick_count
         self.idle_time = new_idle_time.dwLowDateTime
@@ -285,8 +304,8 @@ class WindowManager():
             layout_str = "tile"
         else:
             layout_str = "full"
-        workspace_str = ["","",""]
-        workspace_color = [(250,250,250),(250,250,0),(250,250,250)]
+        workspace_str = ["", "", ""]
+        workspace_color = [(250, 250, 250), (250, 250, 0), (250, 250, 250)]
         i = 0
         for j, workspace in enumerate(self.workspaces):
             if j == self.workspace_idx:
@@ -364,7 +383,7 @@ class WindowManager():
                             win32con.SWP_NOACTIVATE | win32con.SWP_NOZORDER
                             )
                 except Exception:
-                    print ("error: SetWindowpos" + str(workspace[i]))
+                    print("error: SetWindowpos" + str(workspace[i]))
 
     def next_layout(self):
         self.layout[self.workspace_idx] =\
@@ -382,7 +401,7 @@ class WindowManager():
                 target_window = i
         if target_window != -1:
             self.workspaces[self.workspace_idx].pop(target_window)
-        win32gui.PostMessage(hwnd, win32con.WM_CLOSE,0,0)
+        win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
         self.lock.release()
         time.sleep(0.5)
         self.arrange_windows()
@@ -399,17 +418,20 @@ class WindowManager():
         if target_window != -1:
             next_idx = (target_window + num) % len(workspace)
             try:
-                # according to https://stackoverflow.com/questions/14295337/win32gui-setactivewindow-error-the-specified-procedure-could-not-be-found
+                # according to https://stackoverflow.com/questions/14295337/\
+                # win32gui-setactivewindow-error-the-specified-procedure-could\
+                # -not-be-found
                 self.shell.SendKeys('%')
                 win32gui.SetForegroundWindow(workspace[next_idx].hwnd)
                 # print("debug: focus_up: " + str(next_idx))
             except Exception:
-                print ("error: SetForegroundWindow" + str(next_idx))
+                print("error: SetForegroundWindow" + str(next_idx))
 
     def hide_window(self, hwnd):
         try:
             left, top, right, bottom = win32gui.GetWindowRect(hwnd)
-            win32gui.SetWindowPos(hwnd,
+            win32gui.SetWindowPos(
+                    hwnd,
                     win32con.HWND_TOPMOST,
                     left, top, right, bottom,
                     win32con.SWP_HIDEWINDOW | win32con.SWP_NOZORDER |
@@ -438,12 +460,14 @@ class WindowManager():
 
     def show_window(self, hwnd):
         try:
-            left,top,right,bottom = win32gui.GetWindowRect(hwnd)
-            win32gui.SetWindowPos(hwnd,
+            left, top, right, bottom = win32gui.GetWindowRect(hwnd)
+            flags = win32con.SWP_SHOWWINDOW | win32con.SWP_NOZORDER |\
+                win32con.SWP_NOMOVE
+            win32gui.SetWindowPos(
+                    hwnd,
                     win32con.HWND_TOPMOST,
                     left, top, right, bottom,
-                    win32con.SWP_SHOWWINDOW | win32con.SWP_NOZORDER |
-                    win32con.SWP_NOMOVE
+                    flags
                     )
         except Exception:
             print("error: SetWindowPos" + str(hwnd))
@@ -459,8 +483,8 @@ class WindowManager():
         for window in self.workspaces[self.workspace_idx]:
             self.show_window(window.hwnd)
 
-        # print("debug: switch_to_nth_ws: " + str(dstIdx)
-                                    # + ":" + str(self.workspace_idx))
+        # print("debug: switch_to_nth_ws: " + str(dstIdx) +
+        #       ":" + str(self.workspace_idx))
         self.lock.release()
         self.arrange_windows()
         self._update_taskbar_text()

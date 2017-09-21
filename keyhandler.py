@@ -11,6 +11,7 @@ CTRL = 4
 SHIFT = 8
 ALT = 16
 
+
 class KeyHandler:
     def __init__(self, mod_key=NOCONVERT):
         self.handlers = []
@@ -24,13 +25,17 @@ class KeyHandler:
         """
         # Adapted from http://www.hackerthreads.org/Topic-42395
         from ctypes import windll, CFUNCTYPE, POINTER, c_int, c_void_p, byref
-        import win32con, win32api, win32gui, atexit
+        import win32con
+        import win32api
+        import win32gui
+        import atexit
 
-        event_types = {win32con.WM_KEYDOWN: 'key down',
-                    win32con.WM_KEYUP: 'key up',
-                    win32con.WM_SYSKEYDOWN: 'key down',
-                    win32con.WM_SYSKEYUP: 'key up'
-                    }
+        event_types = {
+                win32con.WM_KEYDOWN: 'key down',
+                win32con.WM_KEYUP: 'key up',
+                win32con.WM_SYSKEYDOWN: 'key down',
+                win32con.WM_SYSKEYUP: 'key up'
+                }
 
         def low_level_handler(nCode, wParam, lParam):
             """
@@ -75,18 +80,18 @@ class KeyHandler:
                 return windll.user32.CallNextHookEx(hook_id, nCode,
                                                     wParam, lParam)
 
-
         # Our low level handler signature.
         CMPFUNC = CFUNCTYPE(c_int, c_int, c_int, POINTER(c_void_p))
         # Convert the Python handler into C pointer.
         pointer = CMPFUNC(low_level_handler)
 
         # Hook both key up and key down events for common keys (non-system).
-        hook_id = windll.user32.SetWindowsHookExA(win32con.WH_KEYBOARD_LL,
-                                                pointer,
-                                                win32api.GetModuleHandle(None),
-                                                0
-                                                )
+        hook_id = windll.user32.SetWindowsHookExA(
+                win32con.WH_KEYBOARD_LL,
+                pointer,
+                win32api.GetModuleHandle(None),
+                0
+                )
 
         # Register to remove the hook when the interpreter exits.
         # Unfortunately a try/finally block doesn't seem to work here.
