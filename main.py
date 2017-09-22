@@ -79,7 +79,8 @@ if __name__ == '__main__':
                 {"class_name": "Windows.UI.Core.CoreWindow"},
                 {"class_name": "TaskManagerWindow"},
                 {"class_name": "Microsoft-Windows-SnipperToolbar"},
-                {"class_name": "Qt5QWindowIcon", "title": "GtransWeb"}
+                {"class_name": "Qt5QWindowIcon", "title": "GtransWeb"},
+                {"class_name": "screenClass"}
                 ],
             workspace_n=9,
             network_interface="Dell Wireless 1820A 802.11ac"

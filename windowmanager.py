@@ -157,9 +157,9 @@ class WindowManager():
             title = win32gui.GetWindowText(hwnd)
             if self._in_ignore_list(class_name, title):
                 return
-            if win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)\
-                    & win32con.WS_POPUP:
-                return
+            # if win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)\
+            #         & win32con.WS_POPUP:
+            #     return
             _, pid = win32process.GetWindowThreadProcessId(hwnd)
             window = WindowInfo(hwnd, class_name, title,
                                 pid, self._get_proc_name(pid))
@@ -487,6 +487,8 @@ class WindowManager():
         #       ":" + str(self.workspace_idx))
         self.lock.release()
         self.arrange_windows()
+        self.shell.SendKeys('%')
+        win32gui.SetForegroundWindow(self.workspaces[self.workspace_idx][0].hwnd)
         self._update_taskbar_text()
 
     def send_to_nth_ws(self, dstIdx):

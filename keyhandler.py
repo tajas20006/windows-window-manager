@@ -1,5 +1,4 @@
 # based on https://gist.github.com/ethanhs/80f0a7cc5c7881f5921f
-#
 
 from collections import namedtuple
 
