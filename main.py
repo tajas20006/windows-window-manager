@@ -103,6 +103,7 @@ class EntryPoint():
                             conf["function"](*conf["param"])
                         else:
                             conf["function"]()
+                        return
                 except AttributeError:
                     if e.key_code == conf["key"] and\
                             mod_flag == conf['mod']:
@@ -110,6 +111,7 @@ class EntryPoint():
                             conf["function"](*conf["param"])
                         else:
                             conf["function"]()
+                        return
 
     def kill_program(self):
         manager.recover_windows()
