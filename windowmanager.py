@@ -569,6 +569,9 @@ class WindowManager():
     def reset_windows(self):
         self.recover_windows()
         self.workspaces = [[] for _ in range(self.workspace_n)]
+        if self.watch_dog():
+            self.arrange_windows()
+
 
     def show_window_info(self):
         if self.is_window_info_on:
