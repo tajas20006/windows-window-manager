@@ -1,18 +1,17 @@
 # based on https://gist.github.com/ethanhs/80f0a7cc5c7881f5921f
 
+import constants as C
+from ctypes import windll, CFUNCTYPE, POINTER, c_int, c_void_p, byref
+import win32con
+import win32api
+import win32gui
+import atexit
 from collections import namedtuple
 
 KeyboardEvent = namedtuple('KeyboardEvent', ['event_type', 'key_code'])
 
-NOCONVERT = 1
-WIN = 2
-CTRL = 4
-SHIFT = 8
-ALT = 16
-
-
 class KeyHandler:
-    def __init__(self, mod_key=NOCONVERT):
+    def __init__(self, mod_key=C.NOCONVERT):
         self.handlers = []
         self.mod_flag = 0
         self.mod_key = mod_key
@@ -23,11 +22,6 @@ class KeyHandler:
         This is a blocking call.
         """
         # Adapted from http://www.hackerthreads.org/Topic-42395
-        from ctypes import windll, CFUNCTYPE, POINTER, c_int, c_void_p, byref
-        import win32con
-        import win32api
-        import win32gui
-        import atexit
 
         event_types = {
                 win32con.WM_KEYDOWN: 'key down',
@@ -45,29 +39,29 @@ class KeyHandler:
 
             if key_code == 29:     # noconvert down
                 if event_types[wParam] == "key down":
-                    self.mod_flag |= NOCONVERT
+                    self.mod_flag |= C.NOCONVERT
                 elif event_types[wParam] == "key up":
-                    self.mod_flag -= NOCONVERT
+                    self.mod_flag -= C.NOCONVERT
             elif key_code == 164 or key_code == 165:    # alt
                 if event_types[wParam] == "key down":
-                    self.mod_flag |= ALT
+                    self.mod_flag |= C.ALT
                 elif event_types[wParam] == "key up":
-                    self.mod_flag -= ALT
+                    self.mod_flag -= C.ALT
             elif key_code == 91:    # win
                 if event_types[wParam] == "key down":
-                    self.mod_flag |= WIN
+                    self.mod_flag |= C.WIN
                 elif event_types[wParam] == "key up":
-                    self.mod_flag -= WIN
+                    self.mod_flag -= C.WIN
             elif key_code == 162 or key_code == 163:    # ctrl
                 if event_types[wParam] == "key down":
-                    self.mod_flag |= CTRL
+                    self.mod_flag |= C.CTRL
                 elif event_types[wParam] == "key up":
-                    self.mod_flag -= CTRL
+                    self.mod_flag -= C.CTRL
             elif key_code == 160 or key_code == 161:    # shift
                 if event_types[wParam] == "key down":
-                    self.mod_flag |= SHIFT
+                    self.mod_flag |= C.SHIFT
                 elif event_types[wParam] == "key up":
-                    self.mod_flag -= SHIFT
+                    self.mod_flag -= C.SHIFT
 
             if self.mod_flag & self.mod_key:
                 for handler in self.handlers:

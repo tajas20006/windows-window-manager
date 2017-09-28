@@ -19,37 +19,37 @@ import wmi
 
 
 class WindowInfo():
-    def init(hwnd=-1, class_name="", title="", pid=-1, proc_name=""):
-        hwnd = hwnd
-        class_name = class_name
-        title = title
-        pid = pid
-        proc_name = proc_name
+    def __init__(self, hwnd=-1, class_name="", title="", pid=-1, proc_name=""):
+        self.hwnd = hwnd
+        self.class_name = class_name
+        self.title = title
+        self.pid = pid
+        self.proc_name = proc_name
 
-    def __eq__(other):
+    def __eq__(self, other):
         if isinstance(other, WindowInfo):
-            return hwnd == other.hwnd
+            return self.hwnd == other.hwnd
         elif isinstance(other, int):
-            return hwnd == other
+            return self.hwnd == other
         else:
             return False
 
-    def __ne__(other):
-        return not __eq__(other)
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
-    def __str__():
+    def __str__(self):
         short_title = ""
         if len(title) <= 25:
-            short_title = title
+            short_title = self.title
         else:
-            short_title = title[:22] + "..."
+            short_title = self.title[:22] + "..."
 
         return "hwnd: {}  class: {}  pid: {}  \ntitle: {}  proc: {}".format(
-                hwnd,
-                class_name,
-                pid,
-                short_title,
-                proc_name
+                self.hwnd,
+                self.class_name,
+                self.pid,
+                self.short_title,
+                self.proc_name
                 )
 
 
@@ -60,60 +60,50 @@ class FILETIME(ctypes.Structure):
             ]
 
 
-def init(
-        title="WindowManager",
-        master_n=1, workspace_n=2,
-        ignore_list=[],
-        layout=0,
-        network_interface=""
-        ):
-    # logger.debug('new manager is created')
-    # print('debug: new manager is created')
+c = wmi.WMI()
+dwm = ctypes.cdll.dwmapi
+shell = win32com.client.Dispatch("WScript.Shell")
 
-    c = wmi.WMI()
-    dwm = ctypes.cdll.dwmapi
-    shell = win32com.client.Dispatch("WScript.Shell")
+text = drawtext.TextOnBar()
+thr = threading.Thread(target=text.create_text_box)
+thr.start()
 
-    text = drawtext.TextOnBar()
-    thr = threading.Thread(target=text.create_text_box)
-    thr.start()
+monitors = win32api.EnumDisplayMonitors(None, None)
+(h_first_mon, _, (_, _, _, _)) = monitors[0]
+first_mon = win32api.GetMonitorInfo(h_first_mon)
+m_left, m_top, m_right, m_bottom = first_mon['Monitor']
+w_left, w_top, w_right, w_bottom = first_mon['Work']
 
-    monitors = win32api.EnumDisplayMonitors(None, None)
-    (h_first_mon, _, (_, _, _, _)) = monitors[0]
-    first_mon = win32api.GetMonitorInfo(h_first_mon)
-    m_left, m_top, m_right, m_bottom = first_mon['Monitor']
-    w_left, w_top, w_right, w_bottom = first_mon['Work']
+monitor_w = m_right - m_left
+monitor_h = m_bottom - m_top
+work_w = w_right - w_left
+work_h = w_bottom - w_top
+taskbar_h = monitor_h - work_h
 
-    monitor_w = m_right - m_left
-    monitor_h = m_bottom - m_top
-    work_w = w_right - w_left
-    work_h = w_bottom - w_top
-    taskbar_h = monitor_h - work_h
+workspace_n = 2
+workspace_idx = 0
+workspaces = []
+master_n = []
+layout = []
+lock = threading.Lock()
 
-    workspace_n = workspace_n
-    workspaces = [[]] * workspace_n
-    workspace_idx = 0
-    lock = threading.Lock()
+ignore_list = []
+offset_from_center = 0
+network_interface = ""
+is_window_info_on = False
 
-    master_n = [master_n] * workspace_n
-    layout = [layout] * workspace_n
-
-    ignore_list = ignore_list
-
-    offset_from_center = 0
-    is_window_info_on = False
-
-    network_interface = network_interface
-    idle_time = 0
-    krnl_time = 0
-    user_time = 0
-    tick_count = 0
-    cpu_n = cpu_count()
-    GetSystemTimes = ctypes.windll.kernel32.GetSystemTimes
-
-    first_to_do()
+idle_time = 0
+krnl_time = 0
+user_time = 0
+tick_count = 0
+cpu_n = cpu_count()
+GetSystemTimes = ctypes.windll.kernel32.GetSystemTimes
 
 def first_to_do():
+    global workspaces, master_n, layout
+    workspaces = [[] for _ in range(workspace_n)]
+    master_n = [1] * workspace_n
+    layout = [0] * workspace_n
     watch_dog()
     arrange_windows()
 
@@ -217,6 +207,8 @@ def _bytes_to_str(b):
     return "{:>4}{}".format(b, unit)
 
 def get_cpu_info():
+    global tick_count, idle_time, krnl_time, user_time
+
     new_tick_count = win32api.GetTickCount()
     elapsed = new_tick_count - tick_count
 
@@ -274,7 +266,7 @@ def watch_dog():
     for rm_item in rm_list_new:
         new_stack.remove(rm_item)
     # prepend new windows
-    workspaces[workspace_idx] = new_stack + old_stack
+    old_stack[:0] = new_stack
     lock.release()
 
     try:
@@ -384,28 +376,31 @@ def arrange_windows():
                 print("error: SetWindowpos" + str(workspace[i]))
 
 def next_layout():
-    layout[workspace_idx] =\
-            (layout[workspace_idx] + 1) % 2
+    global layout
+    layout[workspace_idx] = (layout[workspace_idx] + 1) % 2
     arrange_windows()
     _update_taskbar_text()
 
 def close_window():
+    workspace = workspaces[workspace_idx]
     lock.acquire()
     hwnd = win32gui.GetForegroundWindow()
     target_window = -1
-    for i, window in enumerate(workspaces[workspace_idx]):
+    for i, window in enumerate(workspace):
         if hwnd == window:
             print(i)
             target_window = i
     if target_window != -1:
-        workspaces[workspace_idx].pop(target_window)
+        workspace.pop(target_window)
     win32gui.PostMessage(hwnd, win32con.WM_CLOSE, 0, 0)
     lock.release()
     time.sleep(0.5)
     arrange_windows()
 
 def focus_up(num=1):
+    print("focus_up")
     workspace = workspaces[workspace_idx]
+    print(workspace)
     hwnd = win32gui.GetForegroundWindow()
     target_window = -1
     for i, window in enumerate(workspace):
@@ -471,6 +466,7 @@ def show_window(hwnd):
         print("error: SetWindowPos" + str(hwnd))
 
 def switch_to_nth_ws(dstIdx):
+    global workspace_idx
     if workspace_idx == dstIdx:
         return
     lock.acquire()
@@ -494,6 +490,7 @@ def send_to_nth_ws(dstIdx):
         return
     lock.acquire()
     workspace = workspaces[workspace_idx]
+    dst_workspace = workspaces[dstIdx]
     hwnd = win32gui.GetForegroundWindow()
     target_window = -1
     for i, window in enumerate(workspace):
@@ -501,7 +498,7 @@ def send_to_nth_ws(dstIdx):
             target_window = i
 
     if target_window != -1:
-        workspaces[dstIdx][:0] = [workspace[target_window]]
+        dst_workspace[:0] = [workspace[target_window]]
         hide_window(workspace[target_window].hwnd)
         workspace.pop(target_window)
         lock.release()
@@ -513,14 +510,18 @@ def send_to_nth_ws(dstIdx):
 
 def swap_master():
     lock.acquire()
+    print("swap master")
+    workspace = workspaces[workspace_idx]
+    print(workspace)
     hwnd = win32gui.GetForegroundWindow()
     target_window = -1
-    for i, window in enumerate(workspaces[workspace_idx]):
+    for i, window in enumerate(workspace):
         if hwnd == window:
             target_window = i
+    print(target_window)
     if target_window != -1:
-        window = workspaces[workspace_idx].pop(target_window)
-        workspaces[workspace_idx][:0] = [window]
+        window = workspace.pop(target_window)
+        workspace[:0] = [window]
         lock.release()
         arrange_windows()
     else:
@@ -546,6 +547,7 @@ def swap_windows(num=1):
         lock.release()
 
 def inc_master_n(num=1):
+    global master_n
     master_n[workspace_idx] += num
     if master_n[workspace_idx] <= 0:
         master_n[workspace_idx] = 1
@@ -553,6 +555,7 @@ def inc_master_n(num=1):
     arrange_windows()
 
 def expand_master(num=10):
+    global offset_from_center
     offset_from_center += num
     arrange_windows()
 
@@ -565,10 +568,9 @@ def recover_windows():
     arrange_windows()
 
 def reset_windows():
+    global workspaces
     recover_windows()
-    workspaces = [[] for _ in range(workspace_n)]
-    if watch_dog():
-        arrange_windows()
+    first_to_do()
 
 def show_window_info():
     if is_window_info_on:
