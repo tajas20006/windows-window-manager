@@ -486,10 +486,12 @@ class WindowManager():
         # print("debug: switch_to_nth_ws: " + str(dstIdx) +
         #       ":" + str(self.workspace_idx))
         self.lock.release()
-        self.watch_dog()
         self.arrange_windows()
-        self.shell.SendKeys('%')
-        win32gui.SetForegroundWindow(self.workspaces[self.workspace_idx][0].hwnd)
+        if len(self.workspaces[self.workspace_idx]) > 0:
+            self.shell.SendKeys('%')
+            win32gui.SetForegroundWindow(
+                    self.workspaces[self.workspace_idx][0].hwnd
+                    )
         self._update_taskbar_text()
 
     def send_to_nth_ws(self, dstIdx):
