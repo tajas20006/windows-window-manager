@@ -291,10 +291,10 @@ class WindowManager():
             pass
 
         if len(new_stack) > 0:
-            print("new!true")
+            # print("new!true")
             return True
         if len(rm_list_old) > 0:
-            print("closed!true")
+            # print("closed!true")
             return True
         return False
 
@@ -397,7 +397,7 @@ class WindowManager():
         target_window = -1
         for i, window in enumerate(self.workspaces[self.workspace_idx]):
             if hwnd == window:
-                print(i)
+                # print(i)
                 target_window = i
         if target_window != -1:
             self.workspaces[self.workspace_idx].pop(target_window)
@@ -536,7 +536,7 @@ class WindowManager():
         target_window = -1
         for i, window in enumerate(workspace):
             if hwnd == window:
-                print(i)
+                # print(i)
                 target_window = i
 
         if target_window != -1:
@@ -589,7 +589,7 @@ class WindowManager():
                     pid,
                     title if len(title) <= 25 else title[:22] + "..."
                     )
-            print(window_str)
+            # print(window_str)
             self.text.redraw(btm_text=window_str)
             self.is_window_info_on = True
 

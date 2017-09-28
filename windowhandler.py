@@ -27,7 +27,7 @@ WinEventProcType = ctypes.WINFUNCTYPE(
 # http://msdn.microsoft.com/en-us/library/windows/desktop/dd318066(v=vs.85).aspx
 eventTypes = {
         # win32con.EVENT_SYSTEM_FOREGROUND: "Foreground",
-        # win32con.EVENT_OBJECT_FOCUS: "Focus",
+        win32con.EVENT_OBJECT_FOCUS: "Focus",
         # win32con.EVENT_OBJECT_CREATE: "Create",
         # win32con.EVENT_OBJECT_DESTROY: "Destroy",
         win32con.EVENT_OBJECT_SHOW: "Show",
@@ -151,12 +151,12 @@ class WindowHandler():
         elif idObject == win32con.OBJID_CURSOR:
             hwnd = '<Cursor>'
 
-        self.log(u"%s:%04.2f\t%-10s\t"
-            u"W:%-8s\tP:%-8d\tT:%-8d\t"
-            u"%s\t%s" % (
-            dwmsEventTime, float(dwmsEventTime - self.lastTime)/1000, eventTypes.get(event, hex(event)),
-            hwnd, processID or -1, dwEventThread or -1,
-            shortName, title.value))
+        # self.log(u"%s:%04.2f\t%-10s\t"
+        #     u"W:%-8s\tP:%-8d\tT:%-8d\t"
+        #     u"%s\t%s" % (
+        #     dwmsEventTime, float(dwmsEventTime - self.lastTime)/1000, eventTypes.get(event, hex(event)),
+        #     hwnd, processID or -1, dwEventThread or -1,
+        #     shortName, title.value))
 
         if self.function_to_call:
             self.function_to_call()

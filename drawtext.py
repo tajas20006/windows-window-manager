@@ -237,9 +237,6 @@ class TextOnBar():
                     right - 400 - text_len[5]
                     ]
 
-            print(self.texts)
-            print(self.colors)
-
             for i, (t, c) in enumerate(zip(self.texts, self.colors)):
                 for text, color in zip(t, c):
                     r, g, b = color
@@ -260,7 +257,6 @@ class TextOnBar():
             return 0
 
         elif message == win32con.WM_DESTROY:
-            print('Being destroyed')
             win32gui.PostQuitMessage(0)
             return 0
 

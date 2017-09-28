@@ -179,7 +179,6 @@ class EntryPoint():
                         manager.reset_windows()
 
     def window_changed(self):
-        print("hello")
         if manager.watch_dog():
             manager.arrange_windows()
 
