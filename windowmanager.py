@@ -64,7 +64,7 @@ class WindowManager():
     def __init__(
             self,
             title="WindowManager",
-            master_n=1, workspace_n=2,
+            master_n=1, workspace_n=9,
             ignore_list=[],
             layout=0,
             network_interface=""
@@ -93,7 +93,7 @@ class WindowManager():
         self.taskbar_h = self.monitor_h - self.work_h
 
         self.workspace_n = workspace_n
-        self.workspaces = [[]] * self.workspace_n
+        self.workspaces = [[] for _ in range(self.workspace_n)]
         self.workspace_idx = 0
         self.lock = threading.Lock()
 
@@ -486,6 +486,7 @@ class WindowManager():
         # print("debug: switch_to_nth_ws: " + str(dstIdx) +
         #       ":" + str(self.workspace_idx))
         self.lock.release()
+        self.watch_dog()
         self.arrange_windows()
         self.shell.SendKeys('%')
         win32gui.SetForegroundWindow(self.workspaces[self.workspace_idx][0].hwnd)
