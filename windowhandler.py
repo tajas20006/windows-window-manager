@@ -26,7 +26,7 @@ WinEventProcType = ctypes.WINFUNCTYPE(
 # them in the log output. Pick from
 # http://msdn.microsoft.com/en-us/library/windows/desktop/dd318066(v=vs.85).aspx
 eventTypes = {
-        # win32con.EVENT_SYSTEM_FOREGROUND: "Foreground",
+        win32con.EVENT_SYSTEM_FOREGROUND: "Foreground",
         win32con.EVENT_OBJECT_FOCUS: "Focus",
         # win32con.EVENT_OBJECT_CREATE: "Create",
         # win32con.EVENT_OBJECT_DESTROY: "Destroy",
@@ -188,8 +188,11 @@ class WindowHandler():
 
         msg = ctypes.wintypes.MSG()
         while user32.GetMessageW(ctypes.byref(msg), 0, 0, 0) != 0:
-            user32.TranslateMessageW(msg)
-            user32.DispatchMessageW(msg)
+            try:
+                user32.TranslateMessageW(msg)
+                user32.DispatchMessageW(msg)
+            except AttributeError as error:
+                print("error: " + str(error))
 
         for hookID in hookIDs:
             user32.UnhookWinEvent(hookID)
