@@ -5,7 +5,8 @@ ignore_list = [
     {"class_name": "TaskManagerWindow"},
     {"class_name": "Microsoft-Windows-SnipperToolbar"},
     {"class_name": "Qt5QWindowIcon", "title": "GtransWeb"},
-    {"class_name": "screenClass"}
+    {"class_name": "screenClass"},
+    {"class_name": "OperationStatusWindow"}
     ]
 workspace_n = 9
 network_interface = "Dell Wireless 1820A 802.11ac"
