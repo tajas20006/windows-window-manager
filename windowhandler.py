@@ -189,8 +189,8 @@ class WindowHandler():
         msg = ctypes.wintypes.MSG()
         while user32.GetMessageW(ctypes.byref(msg), 0, 0, 0) != 0:
             try:
-                user32.TranslateMessageW(msg)
-                user32.DispatchMessageW(msg)
+                user32.TranslateMessage(msg)
+                user32.DispatchMessage(msg)
             except AttributeError as error:
                 print("error: " + str(error))
 

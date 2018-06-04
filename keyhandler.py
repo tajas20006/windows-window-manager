@@ -43,7 +43,9 @@ class KeyHandler:
             key_code = lParam[0] & 0xFFFFFFFF
             event = KeyboardEvent(event_types[wParam], key_code)
 
-            if key_code == 29:     # noconvert down
+            if key_code == 18:
+                print("alt")
+            elif key_code == 29:     # noconvert down
                 if event_types[wParam] == "key down":
                     self.mod_flag |= NOCONVERT
                 elif event_types[wParam] == "key up":
@@ -102,5 +104,4 @@ class KeyHandler:
                 win32gui.TranslateMessage(byref(msg))
                 win32gui.DispatchMessage(byref(msg))
             except Exception:
-                print("exit keyhandle")
-                break
+                print("ererror in n keyhandle")

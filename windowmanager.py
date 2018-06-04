@@ -118,6 +118,7 @@ class WindowManager():
     def first_to_do(self):
         self.watch_dog()
         self.arrange_windows()
+        return
 
     def _is_real_window(self, hwnd):
         '''Return True iff given window is a real window.'''
@@ -185,6 +186,7 @@ class WindowManager():
             self.text.redraw(tol_text=text, tol_color=(250, 250, 250))
         except:
             pass
+        return
 
     def get_network_info(self):
         try:
@@ -193,10 +195,9 @@ class WindowManager():
                     WHERE Name Like "{}"'.format(self.network_interface))
             received = self._bytes_to_str(int(p[0].BytesReceivedPerSec))
             sent = self._bytes_to_str(int(p[0].BytesSentPerSec))
-            return (received, sent)
+            return (sent, received)
         except:
             return (" EEE", " EEE")
-            pass
 
     def _bytes_to_str(self, b):
         unit = ""
@@ -318,6 +319,7 @@ class WindowManager():
                 tor_text=workspace_str,
                 tor_color=workspace_color
                 )
+        return
 
     def arrange_windows(self):
         workspace = self.workspaces[self.workspace_idx]
@@ -384,12 +386,14 @@ class WindowManager():
                             )
                 except Exception:
                     print("error: SetWindowpos" + str(workspace[i]))
+        return
 
     def next_layout(self):
         self.layout[self.workspace_idx] =\
                 (self.layout[self.workspace_idx] + 1) % 2
         self.arrange_windows()
         self._update_taskbar_text()
+        return
 
     def close_window(self):
         self.lock.acquire()
@@ -405,6 +409,7 @@ class WindowManager():
         self.lock.release()
         time.sleep(0.5)
         self.arrange_windows()
+        return
 
     def focus_up(self, num=1):
         workspace = self.workspaces[self.workspace_idx]
@@ -426,6 +431,7 @@ class WindowManager():
                 # print("debug: focus_up: " + str(next_idx))
             except Exception:
                 print("error: SetForegroundWindow" + str(next_idx))
+        return
 
     def hide_window(self, hwnd):
         try:
@@ -439,6 +445,7 @@ class WindowManager():
                     )
         except Exception:
             print("error: SetWindowPos" + str(hwnd))
+        return
 
     def go_fullscreen(self, hwnd=-1):
         if hwnd == -1:
@@ -446,6 +453,7 @@ class WindowManager():
         style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
         style |= win32con.WS_SYSMENU | win32con.WS_VISIBLE | win32con.WS_POPUP
         win32gui.SetWindowLong(hwnd, win32con.GWL_STYLE, style)
+        return
 
     def ungo_fullscreen(self, hwnd=-1):
         if hwnd == -1:
@@ -457,6 +465,7 @@ class WindowManager():
             style -= win32con.WS_VISIBLE
         if style & win32con.WS_POPUP:
             style -= win32con.WS_POPUP
+        return
 
     def show_window(self, hwnd):
         try:
@@ -471,28 +480,41 @@ class WindowManager():
                     )
         except Exception:
             print("error: SetWindowPos" + str(hwnd))
+        return
 
     def switch_to_nth_ws(self, dstIdx):
         if self.workspace_idx == dstIdx:
             return
         self.lock.acquire()
+        print("lock")
         for window in self.workspaces[self.workspace_idx]:
             self.hide_window(window.hwnd)
-
+        print("hide")
         self.workspace_idx = dstIdx
         for window in self.workspaces[self.workspace_idx]:
             self.show_window(window.hwnd)
-
-        # print("debug: switch_to_nth_ws: " + str(dstIdx) +
-        #       ":" + str(self.workspace_idx))
-        self.lock.release()
-        self.arrange_windows()
+        print("show")
         if len(self.workspaces[self.workspace_idx]) > 0:
             self.shell.SendKeys('%')
             win32gui.SetForegroundWindow(
                     self.workspaces[self.workspace_idx][0].hwnd
                     )
+        print("fore")
+
+        # print("debug: switch_to_nth_ws: " + str(dstIdx) +
+        #       ":" + str(self.workspace_idx))
+        self.arrange_windows()
+        print("arra")
+        # if len(self.workspaces[self.workspace_idx]) > 0:
+        #     self.shell.SendKeys('%')
+        #     win32gui.SetForegroundWindow(
+        #             self.workspaces[self.workspace_idx][0].hwnd
+        #             )
         self._update_taskbar_text()
+        print("task")
+        self.lock.release()
+        print("rele")
+        return
 
     def send_to_nth_ws(self, dstIdx):
         if self.workspace_idx == dstIdx:
@@ -509,12 +531,11 @@ class WindowManager():
             self.workspaces[dstIdx][:0] = [workspace[target_window]]
             self.hide_window(workspace[target_window].hwnd)
             workspace.pop(target_window)
-            self.lock.release()
             # print("debug: send_to_nth_ws: " + str(dstIdx))
             self.arrange_windows()
             self._update_taskbar_text()
-        else:
-            self.lock.release()
+        self.lock.release()
+        return
 
     def swap_master(self):
         self.lock.acquire()
@@ -526,10 +547,9 @@ class WindowManager():
         if target_window != -1:
             window = self.workspaces[self.workspace_idx].pop(target_window)
             self.workspaces[self.workspace_idx][:0] = [window]
-            self.lock.release()
             self.arrange_windows()
-        else:
-            self.lock.release()
+        self.lock.release()
+        return
 
     def swap_windows(self, num=1):
         self.lock.acquire()
@@ -545,10 +565,9 @@ class WindowManager():
             next_idx = (target_window + num) % len(workspace)
             window = workspace.pop(target_window)
             workspace[next_idx:next_idx] = [window]
-            self.lock.release()
             self.arrange_windows()
-        else:
-            self.lock.release()
+        self.lock.release()
+        return
 
     def inc_master_n(self, num=1):
         self.master_n[self.workspace_idx] += num
@@ -556,10 +575,12 @@ class WindowManager():
             self.master_n[self.workspace_idx] = 1
         # print("debug: inc_master_n: " + str(num))
         self.arrange_windows()
+        return
 
     def expand_master(self, num=10):
         self.offset_from_center += num
         self.arrange_windows()
+        return
 
     def recover_windows(self):
         for i, stack in enumerate(self.workspaces):
@@ -568,12 +589,14 @@ class WindowManager():
                 if i != self.workspace_idx:
                     self.show_window(window.hwnd)
         self.arrange_windows()
+        return
 
     def reset_windows(self):
         self.recover_windows()
         self.workspaces = [[] for _ in range(self.workspace_n)]
         if self.watch_dog():
             self.arrange_windows()
+        return
 
 
     def show_window_info(self):
@@ -594,6 +617,7 @@ class WindowManager():
             # print(window_str)
             self.text.redraw(btm_text=window_str)
             self.is_window_info_on = True
+        return
 
     def show_caption(self, hwnd=-1):
         if hwnd == -1:
@@ -610,6 +634,7 @@ class WindowManager():
                 win32con.SWP_NOSIZE |
                 win32con.SWP_NOZORDER
                 )
+        return
 
     def toggle_caption(self, hwnd=-1):
         if hwnd == -1:
@@ -628,3 +653,4 @@ class WindowManager():
                 win32con.SWP_NOSIZE |
                 win32con.SWP_NOZORDER
                 )
+        return
